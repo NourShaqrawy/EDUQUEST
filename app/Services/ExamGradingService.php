@@ -13,6 +13,8 @@ use Illuminate\Support\Str;
 
 class ExamGradingService
 {
+    public function __construct(private readonly NotificationService $notifications) {}
+
     /** أوزان التقييم النهائي. */
     public const LESSONS_WEIGHT = 0.30;
 
@@ -79,20 +81,22 @@ class ExamGradingService
             ]
         );
 
-        $this->issueCertificateIfEligible($user, $course, $finalScore);
+        $certificate = $this->issueCertificateIfEligible($user, $course, $finalScore);
+
+        $this->notifyResult($user, $course, $finalScore, $certificate);
 
         return $result;
     }
 
-    private function issueCertificateIfEligible(User $user, Course $course, float $finalScore): void
+    private function issueCertificateIfEligible(User $user, Course $course, float $finalScore): ?CourseCertificate
     {
         $level = $this->levelFor($finalScore);
 
         if ($level === null) {
-            return; // أقل من عتبة النجاح: لا شهادة (يبقى التقييم محفوظاً)
+            return null; // أقل من عتبة النجاح: لا شهادة (يبقى التقييم محفوظاً)
         }
 
-        CourseCertificate::firstOrCreate(
+        return CourseCertificate::firstOrCreate(
             ['user_id' => $user->id, 'course_id' => $course->id],
             [
                 'certificate_code' => 'CERT-'.$course->id.'-'.$user->id.'-'.strtoupper(Str::random(6)),
@@ -100,6 +104,35 @@ class ExamGradingService
                 'issued_at' => now(),
             ]
         );
+    }
+
+    /** إشعار الطالب بنتيجته، وبشهادته إن صدرت للتوّ. */
+    private function notifyResult(User $user, Course $course, float $finalScore, ?CourseCertificate $certificate): void
+    {
+        $passed = $finalScore >= self::PASS_THRESHOLD;
+
+        $this->notifications->send(
+            $user->id,
+            $passed ? 'لقد اجتزت الامتحان 🎉' : 'لم تجتز الامتحان',
+            "نتيجتك النهائية في كورس \"{$course->title}\": {$finalScore}%.",
+            'exam_result',
+            ['course_id' => $course->id, 'final_score' => $finalScore, 'passed' => $passed],
+        );
+
+        // شهادة صدرت لأول مرة في هذه المحاولة فقط (تجنّباً للتكرار)
+        if ($certificate && $certificate->wasRecentlyCreated) {
+            $this->notifications->send(
+                $user->id,
+                'تهانينا! حصلت على شهادة 🏆',
+                "حصلت على شهادة بمستوى \"{$certificate->level}\" في كورس \"{$course->title}\".",
+                'certificate',
+                [
+                    'course_id' => $course->id,
+                    'certificate_code' => $certificate->certificate_code,
+                    'level' => $certificate->level,
+                ],
+            );
+        }
     }
 
     /** تعيين مستوى الشهادة من الدرجة النهائية (عدّل العتبات حسب سياستك). */

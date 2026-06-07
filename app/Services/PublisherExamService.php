@@ -10,6 +10,8 @@ use Illuminate\Support\Facades\DB;
 
 class PublisherExamService
 {
+    public function __construct(private readonly NotificationService $notifications) {}
+
     /** إنشاء/تحديث إعداد امتحان الكورس (المدة بالدقائق). */
     public function upsertExam(Course $course, int $durationMinutes): CourseExam
     {
@@ -83,6 +85,16 @@ class PublisherExamService
         }
 
         $exam->update(['is_published' => true]);
+
+        // إشعار كل الطلاب المسجّلين في الكورس بأن الامتحان أصبح متاحاً
+        $course = $exam->course;
+        $this->notifications->sendToMany(
+            $course->enrollments()->pluck('user_id'),
+            'امتحان جديد متاح',
+            "أصبح امتحان كورس \"{$course->title}\" متاحاً الآن. أكمل الدروس لتتمكّن من دخوله.",
+            'exam_published',
+            ['course_id' => $course->id],
+        );
 
         return $exam;
     }

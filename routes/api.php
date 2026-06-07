@@ -4,6 +4,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\CourseController;
 use App\Http\Controllers\CourseVideoController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\Publisher\ExamQuestionController; // استيراد المتحكم الجديد
 use App\Http\Controllers\Publisher\PublisherExamController;
 use App\Http\Controllers\Student\EnrollmentController;
@@ -49,6 +50,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/video-answers', [VideoQuestionAnswerController::class, 'index']);
     Route::post('/video-answers', [VideoQuestionAnswerController::class, 'store']);
     Route::get('/video-answers/{id}', [VideoQuestionAnswerController::class, 'show']);
+
+    // 🔔 الإشعارات (متاحة لجميع المستخدمين المسجلين على إشعاراتهم الخاصة)
+    Route::get('/notifications', [NotificationController::class, 'index']);
+    Route::get('/notifications/unread-count', [NotificationController::class, 'unreadCount']);
+    Route::post('/notifications/read-all', [NotificationController::class, 'markAllAsRead']);
+    Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
+    Route::delete('/notifications/{id}', [NotificationController::class, 'destroy']);
 
     /*
     |----------------------------------------------------------------------
@@ -119,6 +127,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/courses/{course}/exam/questions', [ExamQuestionController::class, 'store']);
         Route::put('/exam-questions/{examQuestion}', [ExamQuestionController::class, 'update']);
         Route::delete('/exam-questions/{examQuestion}', [ExamQuestionController::class, 'destroy']);
+
+        // إرسال إشعار إلى مستخدم (وبثّه لحظياً عبر Reverb)
+        Route::post('/notifications', [NotificationController::class, 'store']);
     });
 
     // 🟢 Routes خاصة بالـ User والـ Publisher (تعديل البروفايل)

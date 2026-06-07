@@ -60,6 +60,11 @@ class User extends Authenticatable
         return $this->hasMany(CourseResult::class);
     }
 
+    public function notifications()
+    {
+        return $this->hasMany(Notification::class)->latest();
+    }
+
     public function isEnrolledIn(int $courseId): bool
     {
         return $this->enrollments()->where('course_id', $courseId)->exists();

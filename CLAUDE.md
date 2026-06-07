@@ -53,9 +53,16 @@ There are therefore **two `User` models**: `App\Models\User` (used by legacy cod
 - **Validation** is done either inline with `$request->validate([...])` or via `Validator::make(...)` returning 422 on failure. The Domain layer uses FormRequests with a `toDto()` method.
 - Eager-loading of relations (`with([...])`) is commented out in several `CourseController` methods — leave intentional unless addressing N+1.
 
+## Notifications / broadcasting (implemented)
+
+[NewNotification](app/Events/NewNotification.php) is a `ShouldBroadcast` event on a per-user **public** channel (`user.{id}`), broadcast as `notification.new` with a flat payload (`broadcastWith`). It is backed by the [Notification](app/Models/Notification.php) model + `notifications` table (`user_id, type, title, body, data(json), read_at`), and exposed via [NotificationController](app/Http/Controllers/NotificationController.php): `GET /api/notifications`, `GET /api/notifications/unread-count`, `POST /api/notifications/read-all`, `POST /api/notifications/{id}/read`, `DELETE /api/notifications/{id}` (all on a user's own notifications), plus `POST /api/notifications` (admin/publisher only).
+
+All notification creation+broadcast goes through [NotificationService](app/Services/NotificationService.php) (`send()` / `sendToMany()`) — **use it, don't `Notification::create()` + `broadcast()` by hand.** Automatic notifications are fired from the service layer (not controllers): enrollment (`type=enrollment`) in [EnrollmentService](app/Services/EnrollmentService.php); exam result + certificate (`type=exam_result`/`certificate`) in [ExamGradingService::recordFinalResult](app/Services/ExamGradingService.php) — which runs once per attempt via the idempotent `ExamService::finalize`, so it also covers background/auto-finalized attempts; and exam publish (`type=exam_published`, to all enrolled students) in [PublisherExamService::publish](app/Services/PublisherExamService.php).
+
+Because broadcasting goes through the queue (`QUEUE_CONNECTION=database`), a `queue:work` worker **and** `php artisan reverb:start` must be running for events to actually be delivered (the DB row is written synchronously regardless). The channel is public, so there is no `routes/channels.php` auth.
+
 ## Partially scaffolded features (exist but inert)
 
-- **Notifications/broadcasting.** [NewNotification](app/Events/NewNotification.php) is a `ShouldBroadcast` event on a per-user channel (`user.{id}`) and references `App\Models\Notification`, but **that model does not exist** and [NotificationController](app/Http/Controllers/NotificationController.php) is an empty stub. Nothing is wired into `routes/api.php`. Don't assume the feature works.
 - **Course certificates.** The `course_certificates` table, [CourseCertificate](app/Models/CourseCertificate.php) model, and [CourseCertificateController](app/Http/Controllers/CourseCertificateController.php) exist, but no certificate routes are registered in `routes/api.php` — the "completing a course yields a certificate" flow is not actually reachable via the API yet.
 
 ## Config notes

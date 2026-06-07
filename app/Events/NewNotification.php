@@ -23,4 +23,24 @@ class NewNotification implements ShouldBroadcast
     {
         return new Channel('user.'.$this->notification->user_id);
     }
+
+    // اسم الحدث الذي يستمع له العميل (Echo .listen('.notification.new'))
+    public function broadcastAs(): string
+    {
+        return 'notification.new';
+    }
+
+    // البيانات التي تُرسَل عبر WebSocket
+    public function broadcastWith(): array
+    {
+        return [
+            'id' => $this->notification->id,
+            'type' => $this->notification->type,
+            'title' => $this->notification->title,
+            'body' => $this->notification->body,
+            'data' => $this->notification->data,
+            'read_at' => $this->notification->read_at,
+            'created_at' => $this->notification->created_at,
+        ];
+    }
 }
