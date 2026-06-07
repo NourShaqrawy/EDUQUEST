@@ -7,6 +7,9 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\CourseController; // استيراد المتحكم الجديد
 use App\Http\Controllers\CourseVideoController;
+use App\Http\Controllers\VideoQuestionController;
+use App\Http\Controllers\VideoQuestionOptionController;
+use App\Http\Controllers\VideoQuestionAnswerController;
 
 /*
 |--------------------------------------------------------------------------
@@ -33,6 +36,17 @@ Route::middleware('auth:sanctum')->group(function () {
     
     Route::post('/logout', [AuthController::class, 'logout']);
 
+    // عرض الأسئلة والخيارات وإرسال الإجابات (متاح لجميع المستخدمين المسجلين)
+    Route::get('/videos/{video_id}/questions', [VideoQuestionController::class, 'index']);
+    Route::get('/video-questions/{id}', [VideoQuestionController::class, 'show']);
+    
+    Route::get('/questions/{question_id}/options', [VideoQuestionOptionController::class, 'index']);
+    Route::get('/video-options/{id}', [VideoQuestionOptionController::class, 'show']);
+
+    Route::get('/video-answers', [VideoQuestionAnswerController::class, 'index']);
+    Route::post('/video-answers', [VideoQuestionAnswerController::class, 'store']);
+    Route::get('/video-answers/{id}', [VideoQuestionAnswerController::class, 'show']);
+
     // 🟢 Routes خاصة بالـ Admin فقط
     Route::middleware('role:admin')->group(function () {
         Route::get('/users', [UserController::class, 'index']);
@@ -57,6 +71,18 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/courses/{courseId}/videos', [CourseVideoController::class, 'store']);
         Route::post('/courses/{courseId}/videos/{videoId}', [CourseVideoController::class, 'update']);
         Route::delete('/courses/{courseId}/videos/{videoId}', [CourseVideoController::class, 'destroy']);
+
+        // إدارة أسئلة الفيديو وخياراتها
+        Route::post('/video-questions', [VideoQuestionController::class, 'store']);
+        Route::put('/video-questions/{id}', [VideoQuestionController::class, 'update']);
+        Route::delete('/video-questions/{id}', [VideoQuestionController::class, 'destroy']);
+
+        Route::post('/video-options', [VideoQuestionOptionController::class, 'store']);
+        Route::put('/video-options/{id}', [VideoQuestionOptionController::class, 'update']);
+        Route::delete('/video-options/{id}', [VideoQuestionOptionController::class, 'destroy']);
+
+        // حذف الإجابات إذا لزم الأمر
+        Route::delete('/video-answers/{id}', [VideoQuestionAnswerController::class, 'destroy']);
     });
 
     // 🟢 Routes خاصة بالـ User والـ Publisher (تعديل البروفايل)
