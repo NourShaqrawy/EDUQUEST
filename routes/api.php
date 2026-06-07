@@ -36,6 +36,9 @@ Route::middleware('auth:sanctum')->group(function () {
     
     Route::post('/logout', [AuthController::class, 'logout']);
 
+    // عرض دروس الكورس للطالب مع حالة الفتح/الإكمال (can_watch / is_completed)
+    Route::get('/courses/{courseId}/lessons', [CourseVideoController::class, 'studentIndex']);
+
     // عرض الأسئلة والخيارات وإرسال الإجابات (متاح لجميع المستخدمين المسجلين)
     Route::get('/videos/{video_id}/questions', [VideoQuestionController::class, 'index']);
     Route::get('/video-questions/{id}', [VideoQuestionController::class, 'show']);

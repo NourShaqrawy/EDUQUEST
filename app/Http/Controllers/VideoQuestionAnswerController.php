@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\VideoQuestion;
 use App\Models\VideoQuestionAnswer;
 use App\Models\VideoQuestionOption;
 use Illuminate\Http\Request;
@@ -14,12 +15,12 @@ class VideoQuestionAnswerController extends Controller
         $user = $request->user();
 
         $answers = VideoQuestionAnswer::with(['question', 'option'])
-            ->when($user->role === 'user', fn($q) => $q->where('user_id', $user->id))
+            ->when($user->role === 'user', fn ($q) => $q->where('user_id', $user->id))
             ->get();
 
         return response()->json([
             'status' => 'success',
-            'data'   => $answers,
+            'data' => $answers,
         ]);
     }
 
@@ -27,30 +28,55 @@ class VideoQuestionAnswerController extends Controller
     {
         $validated = $request->validate([
             'question_id' => 'required|exists:video_questions,id',
-            'option_id'   => 'required|exists:video_question_options,id',
+            'option_id' => 'required|exists:video_question_options,id',
         ]);
+
+        $user = $request->user();
 
         $option = VideoQuestionOption::where('id', $validated['option_id'])
             ->where('question_id', $validated['question_id'])
             ->first();
 
-        if (!$option) {
+        if (! $option) {
             return response()->json([
-                'status'  => 'error',
+                'status' => 'error',
                 'message' => 'The selected option does not belong to this question.',
             ], 422);
         }
 
-        $answer = VideoQuestionAnswer::updateOrCreate(
-            ['user_id' => Auth::id(), 'question_id' => $validated['question_id']],
-            ['option_id' => $validated['option_id'], 'is_correct' => $option->is_correct],
-        );
+        // فرض الحماية: لا يمكن الإجابة على سؤال يتبع فيديو مقفل
+        $question = VideoQuestion::with('video')->find($validated['question_id']);
+        if ($user->role === 'user' && (! $question->video || ! $question->video->isUnlockedFor($user->id))) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'لا يمكنك الإجابة، هذا الفيديو مقفل.',
+            ], 403);
+        }
+
+        // الإجابة مرة واحدة فقط: لا يمكن إعادة الإجابة أو الكتابة فوقها حتى لو كانت خاطئة
+        $alreadyAnswered = VideoQuestionAnswer::where('user_id', $user->id)
+            ->where('question_id', $validated['question_id'])
+            ->exists();
+
+        if ($alreadyAnswered) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'لقد أجبت على هذا السؤال مسبقاً ولا يمكن تغيير الإجابة.',
+            ], 409);
+        }
+
+        $answer = VideoQuestionAnswer::create([
+            'user_id' => $user->id,
+            'question_id' => $validated['question_id'],
+            'option_id' => $validated['option_id'],
+            'is_correct' => $option->is_correct,
+        ]);
 
         return response()->json([
-            'status'     => 'success',
-            'message'    => 'Answer submitted',
+            'status' => 'success',
+            'message' => 'Answer submitted',
             'is_correct' => $option->is_correct,
-            'data'       => $answer,
+            'data' => $answer,
         ], 201);
     }
 
@@ -64,7 +90,7 @@ class VideoQuestionAnswerController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'data'   => $answer,
+            'data' => $answer,
         ]);
     }
 
@@ -74,7 +100,7 @@ class VideoQuestionAnswerController extends Controller
         $answer->delete();
 
         return response()->json([
-            'status'  => 'success',
+            'status' => 'success',
             'message' => 'Answer deleted successfully',
         ]);
     }

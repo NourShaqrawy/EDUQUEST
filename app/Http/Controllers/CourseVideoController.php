@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Course;
 use App\Models\CourseVideo;
+use App\Models\VideoQuestionAnswer;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
@@ -26,6 +27,62 @@ class CourseVideoController extends Controller
         $videos = $course->courseVideos()->orderBy('order')->orderBy('id')->get();
 
         return response()->json(['course' => $course, 'videos' => $videos]);
+    }
+
+    /**
+     * عرض دروس الكورس للطالب (متاح لأي مستخدم مسجّل).
+     * يرجّع لكل فيديو حقلَي can_watch و is_completed، ويُخفي روابط ومسارات الفيديوهات المقفلة.
+     * القاعدة: الفيديو مفتوح فقط إذا أكمل المستخدم كل الفيديوهات السابقة (الإكمال = الإجابة على كل أسئلتها).
+     */
+    public function studentIndex(Request $request, $courseId)
+    {
+        $course = Course::findOrFail($courseId);
+        $userId = $request->user()->id;
+
+        // ترتيب مضمون عبر علاقة courseVideos (order ثم id)
+        $videos = $course->courseVideos()->withCount('videoQuestions')->get();
+
+        // عدد الأسئلة التي أجاب عليها المستخدم لكل فيديو (استعلام واحد بدل N استعلام)
+        $answeredPerVideo = VideoQuestionAnswer::query()
+            ->join('video_questions', 'video_questions.id', '=', 'video_question_answers.question_id')
+            ->where('video_question_answers.user_id', $userId)
+            ->whereIn('video_questions.video_id', $videos->pluck('id'))
+            ->selectRaw('video_questions.video_id as video_id, COUNT(*) as answered_count')
+            ->groupBy('video_questions.video_id')
+            ->pluck('answered_count', 'video_id');
+
+        $allPreviousCompleted = true; // الفيديو الأول دائماً مفتوح
+
+        foreach ($videos as $video) {
+            $totalQuestions = (int) $video->video_questions_count;
+            $answeredCount = (int) ($answeredPerVideo[$video->id] ?? 0);
+
+            $isCompleted = $totalQuestions === 0 ? true : $answeredCount >= $totalQuestions;
+            $canWatch = $allPreviousCompleted;
+
+            $video->can_watch = $canWatch;
+            $video->is_completed = $isCompleted;
+
+            // فرض الحماية على المخدم: لا نكشف روابط/مسارات الفيديو المقفل
+            if (! $canWatch) {
+                $video->makeHidden([
+                    'video_url', 'url_144p', 'url_360p', 'url_720p',
+                    'video_path', 'video_144p', 'video_360p', 'video_720p',
+                ]);
+            }
+
+            $video->makeHidden('video_questions_count');
+
+            $allPreviousCompleted = $allPreviousCompleted && $isCompleted;
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'data' => [
+                'course' => $course,
+                'videos' => $videos,
+            ],
+        ]);
     }
 
     public function store(Request $request, $courseId)
@@ -65,7 +122,8 @@ class CourseVideoController extends Controller
         } catch (Throwable $e) {
             $this->deleteStoredFiles($paths);
             report($e);
-            return response()->json(['message' => 'فشل في معالجة الفيديو: ' . $e->getMessage()], 500);
+
+            return response()->json(['message' => 'فشل في معالجة الفيديو: '.$e->getMessage()], 500);
         }
     }
 
@@ -87,7 +145,7 @@ class CourseVideoController extends Controller
             $video->video_path,
             $video->video_144p,
             $video->video_360p,
-            $video->video_720p
+            $video->video_720p,
         ];
 
         try {
@@ -96,7 +154,7 @@ class CourseVideoController extends Controller
             if ($request->hasFile('video')) {
                 // معالجة الفيديو الجديد
                 $newPaths = $this->processMultiResVideo($request->file('video'), $course);
-                
+
                 $updateData['video_path'] = $newPaths['original'];
                 $updateData['video_144p'] = $newPaths['144p'];
                 $updateData['video_360p'] = $newPaths['360p'];
@@ -111,8 +169,11 @@ class CourseVideoController extends Controller
 
             return response()->json(['message' => 'تم التحديث وحذف الملفات القديمة', 'video' => $video->fresh()]);
         } catch (Throwable $e) {
-            if (!empty($newPaths)) $this->deleteStoredFiles($newPaths);
+            if (! empty($newPaths)) {
+                $this->deleteStoredFiles($newPaths);
+            }
             report($e);
+
             return response()->json(['message' => 'فشل التحديث'], 500);
         }
     }
@@ -123,7 +184,7 @@ class CourseVideoController extends Controller
         $video = $course->courseVideos()->findOrFail($videoId);
 
         $paths = [$video->video_path, $video->video_144p, $video->video_360p, $video->video_720p];
-        
+
         $video->delete();
         $this->deleteStoredFiles($paths);
 
@@ -137,7 +198,7 @@ class CourseVideoController extends Controller
         $baseName = uniqid('lesson_', true);
         $extension = $videoFile->getClientOriginalExtension();
         $directory = "course-videos/{$course->id}/$baseName";
-        
+
         Storage::disk('public')->makeDirectory($directory);
 
         // حفظ الأصلي
@@ -150,7 +211,7 @@ class CourseVideoController extends Controller
         foreach ($this->resolutions as $label => $scale) {
             $fileName = "video_{$label}.mp4";
             $targetPath = Storage::disk('public')->path("$directory/$fileName");
-            
+
             $this->runFfmpegCompression($fullOriginalPath, $targetPath, $scale);
             $results[$label] = "$directory/$fileName";
         }
@@ -164,17 +225,17 @@ class CourseVideoController extends Controller
             'ffmpeg', '-y', '-i', $source,
             '-vf', $scale,
             '-vcodec', 'libx264',
-            '-crf', '28', 
+            '-crf', '28',
             '-preset', 'veryfast',
             '-acodec', 'aac',
-            $target
+            $target,
         ]);
 
         $process->setTimeout(null);
         $process->run();
 
-        if (!$process->isSuccessful()) {
-            throw new \RuntimeException("خطأ في إنتاج جودة {$scale}: " . $process->getErrorOutput());
+        if (! $process->isSuccessful()) {
+            throw new \RuntimeException("خطأ في إنتاج جودة {$scale}: ".$process->getErrorOutput());
         }
     }
 
@@ -182,16 +243,17 @@ class CourseVideoController extends Controller
     {
         $process = new Process([
             'ffprobe', '-v', 'error', '-show_entries', 'format=duration',
-            '-of', 'default=noprint_wrappers=1:nokey=1', $fullPath
+            '-of', 'default=noprint_wrappers=1:nokey=1', $fullPath,
         ]);
         $process->run();
+
         return $process->isSuccessful() ? (int) round((float) trim($process->getOutput())) : 0;
     }
 
     private function deleteStoredFiles(array $paths): void
     {
         $filtered = array_filter($paths);
-        if (!empty($filtered)) {
+        if (! empty($filtered)) {
             Storage::disk('public')->delete($filtered);
         }
     }
@@ -202,6 +264,7 @@ class CourseVideoController extends Controller
         if (Auth::user()->role !== 'admin' && $course->publisher_id !== Auth::id()) {
             abort(403, 'غير مسموح لك بالوصول');
         }
+
         return $course;
     }
 }

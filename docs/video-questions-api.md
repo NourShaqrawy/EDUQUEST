@@ -43,6 +43,74 @@ Authorization: Bearer <token>
 
 ---
 
+## نظام التقدّم وقفل الفيديوهات (Progression)
+
+تُشاهَد فيديوهات الكورس بالترتيب (`order` ثم `id`). القواعد المطبَّقة على دور `user`:
+
+1. **الفيديو الأول دائماً مفتوح.**
+2. **لا يُفتح فيديو إلا بعد إكمال كل الفيديوهات السابقة.** الإكمال = الإجابة على **كل** أسئلة الفيديو. الفيديو الذي لا يحوي أسئلة يُعتبر مكتملاً تلقائياً.
+3. **كل تمرين يظهر مرة واحدة فقط.** بمجرد أن يجيب المستخدم على سؤال، لا يظهر له مجدداً، ولا يمكن تغيير الإجابة (حتى لو كانت خاطئة).
+
+هذه القواعد **مفروضة على المخدم** وليست مجرد أعلام للواجهة: أي محاولة لجلب أسئلة/خيارات أو إرسال إجابة لفيديو مقفل تُرفض بـ `403`، وإعادة الإجابة تُرفض بـ `409`.
+
+> لدوري `admin` و `publisher` لا يوجد قفل ولا إخفاء — يرون كل المحتوى.
+
+### عرض دروس الكورس للطالب
+
+```
+GET /api/courses/{courseId}/lessons
+```
+
+| | |
+|---|---|
+| **الصلاحية** | مسجّل دخول (جميع الأدوار) |
+| **Header** | `Authorization: Bearer <token>` |
+
+يرجّع كل فيديوهات الكورس مرتّبة، مع حقلين إضافيين لكل فيديو:
+
+| الحقل | النوع | الوصف |
+|---|---|---|
+| `can_watch` | boolean | هل يُسمح للمستخدم بمشاهدة هذا الفيديو الآن؟ |
+| `is_completed` | boolean | هل أكمل المستخدم هذا الفيديو (أجاب على كل أسئلته)؟ |
+
+> **مهم:** روابط ومسارات الفيديو (`video_url`, `url_144p`, `url_360p`, `url_720p`, `video_path`, …) تُحذف من الاستجابة للفيديوهات المقفلة (`can_watch = false`).
+
+**مثال:** `GET /api/courses/1/lessons`
+
+**Response — نجاح `200`:**
+```json
+{
+  "status": "success",
+  "data": {
+    "course": { "id": 1, "title": "Laravel API Development", "...": "..." },
+    "videos": [
+      {
+        "id": 1,
+        "course_id": 1,
+        "title": "Introduction to Routes",
+        "order": 1,
+        "duration": 300,
+        "can_watch": true,
+        "is_completed": false,
+        "video_url": "http://localhost:8000/storage/course-videos/1/.../original.mp4",
+        "url_360p": "http://localhost:8000/storage/course-videos/1/.../video_360p.mp4"
+      },
+      {
+        "id": 2,
+        "course_id": 1,
+        "title": "Controllers",
+        "order": 2,
+        "duration": 420,
+        "can_watch": false,
+        "is_completed": false
+      }
+    ]
+  }
+}
+```
+
+---
+
 ## 1. أسئلة الفيديو
 
 ### عرض أسئلة فيديو معين
@@ -90,6 +158,15 @@ GET /api/videos/{video_id}/questions
 
 > ملاحظة: الأسئلة مرتّبة تصاعدياً بحسب `time_in_video`.
 > حقل `is_correct` **مخفي** في الـ options عند دور `user`.
+> لدور `user`: تُستثنى الأسئلة التي سبق أن أجاب عليها (تُعاد فقط الأسئلة غير المُجابة).
+
+**Response — الفيديو مقفل (دور `user`) `403`:**
+```json
+{
+  "status": "error",
+  "message": "هذا الفيديو مقفل. عليك إكمال الفيديو السابق أولاً."
+}
+```
 
 ---
 
@@ -506,7 +583,8 @@ POST /api/video-answers
 }
 ```
 
-> ملاحظة: إذا أجاب الطالب على نفس السؤال مرة ثانية، يتم تحديث إجابته السابقة.
+> ملاحظة: الإجابة **نهائية** وتُسجَّل مرة واحدة فقط. محاولة إعادة الإجابة على نفس السؤال تُرفض بـ `409` (لا تحديث ولا كتابة فوقها، حتى لو كانت الإجابة الأولى خاطئة).
+> كما يجب أن يكون فيديو السؤال **مفتوحاً** للمستخدم، وإلا تُرفض الإجابة بـ `403`.
 
 **Response — نجاح `201` (إجابة صحيحة):**
 ```json
@@ -540,6 +618,22 @@ POST /api/video-answers
 {
   "status": "error",
   "message": "The selected option does not belong to this question."
+}
+```
+
+**Response — الفيديو مقفل `403`:**
+```json
+{
+  "status": "error",
+  "message": "لا يمكنك الإجابة، هذا الفيديو مقفل."
+}
+```
+
+**Response — سبق أن أجاب على السؤال `409`:**
+```json
+{
+  "status": "error",
+  "message": "لقد أجبت على هذا السؤال مسبقاً ولا يمكن تغيير الإجابة."
 }
 ```
 
@@ -607,6 +701,7 @@ DELETE /api/video-answers/{id}
 
 | الميثود | الرابط | الصلاحية |
 |---|---|---|
+| GET | `/api/courses/{courseId}/lessons` | auth |
 | GET | `/api/videos/{video_id}/questions` | auth |
 | GET | `/api/video-questions/{id}` | auth |
 | POST | `/api/video-questions` | admin, publisher |

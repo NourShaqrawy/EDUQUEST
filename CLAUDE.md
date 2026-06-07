@@ -18,9 +18,12 @@ php artisan test --filter=SomeTest   # run a single test class/method
 php artisan test tests/Feature/ExampleTest.php   # run one file
 ./vendor/bin/pint   # format code (Laravel Pint / PSR-12)
 php artisan migrate # apply migrations (default DB is SQLite)
+php artisan db:seed # seed test data (see below)
 ```
 
 Tests use an in-memory SQLite DB (`phpunit.xml`); they do not touch the dev database. The repo currently only ships the default example tests.
+
+**Seeding / test credentials.** `DatabaseSeeder` calls `UsersTableSeeder` (creates `admin@example.com`, `publisher@example.com`, `user@example.com` — all password `password123`, one per role) then `TestDataSeeder` (a full Category → Course → CourseVideo → two VideoQuestions + options chain, useful for exercising the question/answer flow). These are raw `DB::table()->insert` seeds, not factories.
 
 ## Authorization model (important)
 
@@ -50,10 +53,15 @@ There are therefore **two `User` models**: `App\Models\User` (used by legacy cod
 - **Validation** is done either inline with `$request->validate([...])` or via `Validator::make(...)` returning 422 on failure. The Domain layer uses FormRequests with a `toDto()` method.
 - Eager-loading of relations (`with([...])`) is commented out in several `CourseController` methods — leave intentional unless addressing N+1.
 
-## Notifications / broadcasting
+## Partially scaffolded features (exist but inert)
 
-[NewNotification](app/Events/NewNotification.php) is a `ShouldBroadcast` event on a per-user channel (`user.{id}`). Note it references `App\Models\Notification` and a `NotificationController` — verify these exist before relying on them, as the notification feature appears partially scaffolded.
+- **Notifications/broadcasting.** [NewNotification](app/Events/NewNotification.php) is a `ShouldBroadcast` event on a per-user channel (`user.{id}`) and references `App\Models\Notification`, but **that model does not exist** and [NotificationController](app/Http/Controllers/NotificationController.php) is an empty stub. Nothing is wired into `routes/api.php`. Don't assume the feature works.
+- **Course certificates.** The `course_certificates` table, [CourseCertificate](app/Models/CourseCertificate.php) model, and [CourseCertificateController](app/Http/Controllers/CourseCertificateController.php) exist, but no certificate routes are registered in `routes/api.php` — the "completing a course yields a certificate" flow is not actually reachable via the API yet.
 
 ## Config notes
 
 Default `DB_CONNECTION` is `sqlite`; queue, cache, and sessions default to the `database` driver in `.env.example`. Run `composer setup` for first-time install (copies `.env`, generates key, migrates, builds assets).
+
+## Docs
+
+[docs/video-questions-api.md](docs/video-questions-api.md) is a hand-written (Arabic) API reference for the video-questions/options/answers endpoints, including request/response examples and the `password123` test login — the most complete endpoint documentation in the repo. Keep it in sync when changing those controllers.
