@@ -68,11 +68,21 @@ class CourseVideo extends Model
         return $this->hasMany(VideoQuestion::class, 'video_id');
     }
 
-    /**
-     * هل أكمل المستخدم هذا الفيديو؟
-     * الإكمال = الإجابة على كل أسئلة الفيديو. الفيديو الذي لا يحوي أسئلة يُعتبر مكتملاً تلقائياً.
-     */
-    public function isCompletedBy(int $userId): bool
+    public function lessonProgress()
+    {
+        return $this->hasMany(LessonProgress::class, 'course_video_id');
+    }
+
+    /** هل شاهد المستخدم هذا الفيديو (سُجّلت مشاهدته)؟ */
+    public function isWatchedBy(int $userId): bool
+    {
+        return LessonProgress::where('user_id', $userId)
+            ->where('course_video_id', $this->id)
+            ->exists();
+    }
+
+    /** هل أجاب المستخدم على كل أسئلة هذا الدرس؟ الدرس بلا أسئلة يُعدّ مُجاباً تلقائياً. */
+    public function hasAnsweredAllQuestions(int $userId): bool
     {
         $questionIds = $this->videoQuestions()->pluck('id');
 
@@ -85,6 +95,48 @@ class CourseVideo extends Model
             ->count();
 
         return $answeredCount >= $questionIds->count();
+    }
+
+    /**
+     * هل أكمل المستخدم هذا الدرس (لأغراض الفتح التسلسلي)؟
+     * الإكمال = الإجابة على كل أسئلة الدرس (كما في السلوك الأصلي).
+     * أما شرط المشاهدة فيُطبَّق منفصلاً كبوابة لامتحان الكورس فقط
+     * (راجع LessonProgressService::hasCompletedAllLessons).
+     */
+    public function isCompletedBy(int $userId): bool
+    {
+        return $this->hasAnsweredAllQuestions($userId);
+    }
+
+    /**
+     * هل هذا الفيديو متاح للمستخدم؟
+     * الفيديو الأول متاح للجميع (معاينة). أي فيديو آخر يتطلب التسجيل في الكورس + الفتح التسلسلي.
+     */
+    public function isAccessibleFor(User $user): bool
+    {
+        if ($this->isFirstInCourse()) {
+            return true;
+        }
+
+        if (! $user->isEnrolledIn($this->course_id)) {
+            return false;
+        }
+
+        return $this->isUnlockedFor($user->id);
+    }
+
+    /** هل هذا هو الفيديو الأول في الكورس (حسب order ثم id)؟ */
+    public function isFirstInCourse(): bool
+    {
+        return ! static::where('course_id', $this->course_id)
+            ->where(function ($query) {
+                $query->where('order', '<', $this->order)
+                    ->orWhere(function ($tieBreaker) {
+                        $tieBreaker->where('order', $this->order)
+                            ->where('id', '<', $this->id);
+                    });
+            })
+            ->exists();
     }
 
     /**

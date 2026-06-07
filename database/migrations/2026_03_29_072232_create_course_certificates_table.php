@@ -15,7 +15,7 @@ return new class extends Migration
             $table->bigIncrements('id');
             $table->unsignedBigInteger('user_id');
             $table->unsignedBigInteger('course_id');
-            $table->string('certificate_code', 50);
+            $table->string('certificate_code', 50)->unique();
             $table->enum('level', ['average', 'good', 'excellent']);
             $table->timestamp('issued_at')->nullable();
             $table->timestamps();
@@ -29,6 +29,9 @@ return new class extends Migration
                 ->references('id')
                 ->on('courses')
                 ->cascadeOnDelete();
+
+            // شهادة واحدة لكل مستخدم في كل كورس
+            $table->unique(['user_id', 'course_id']);
         });
     }
 

@@ -1,15 +1,19 @@
 <?php
 
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\UserController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CategoryController;
-use App\Http\Controllers\CourseController; // استيراد المتحكم الجديد
+use App\Http\Controllers\CourseController;
 use App\Http\Controllers\CourseVideoController;
+use App\Http\Controllers\Publisher\ExamQuestionController; // استيراد المتحكم الجديد
+use App\Http\Controllers\Publisher\PublisherExamController;
+use App\Http\Controllers\Student\EnrollmentController;
+use App\Http\Controllers\Student\StudentCourseController;
+use App\Http\Controllers\Student\StudentExamController;
+use App\Http\Controllers\UserController;
+use App\Http\Controllers\VideoQuestionAnswerController;
 use App\Http\Controllers\VideoQuestionController;
 use App\Http\Controllers\VideoQuestionOptionController;
-use App\Http\Controllers\VideoQuestionAnswerController;
+use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
@@ -17,7 +21,7 @@ use App\Http\Controllers\VideoQuestionAnswerController;
 |--------------------------------------------------------------------------
 */
 Route::post('/register', [AuthController::class, 'register']);
-Route::post('/login',    [AuthController::class, 'login']);
+Route::post('/login', [AuthController::class, 'login']);
 
 Route::get('/categories', [CategoryController::class, 'index']);
 Route::get('/categories/{id}', [CategoryController::class, 'show']);
@@ -26,23 +30,19 @@ Route::get('/categories/{id}', [CategoryController::class, 'show']);
 Route::get('/courses', [CourseController::class, 'index']);
 Route::get('/courses/{id}', [CourseController::class, 'show']);
 
-
 /*
 |--------------------------------------------------------------------------
 | Authenticated Routes (المسارات التي تتطلب تسجيل دخول)
 |--------------------------------------------------------------------------
 */
 Route::middleware('auth:sanctum')->group(function () {
-    
-    Route::post('/logout', [AuthController::class, 'logout']);
 
-    // عرض دروس الكورس للطالب مع حالة الفتح/الإكمال (can_watch / is_completed)
-    Route::get('/courses/{courseId}/lessons', [CourseVideoController::class, 'studentIndex']);
+    Route::post('/logout', [AuthController::class, 'logout']);
 
     // عرض الأسئلة والخيارات وإرسال الإجابات (متاح لجميع المستخدمين المسجلين)
     Route::get('/videos/{video_id}/questions', [VideoQuestionController::class, 'index']);
     Route::get('/video-questions/{id}', [VideoQuestionController::class, 'show']);
-    
+
     Route::get('/questions/{question_id}/options', [VideoQuestionOptionController::class, 'index']);
     Route::get('/video-options/{id}', [VideoQuestionOptionController::class, 'show']);
 
@@ -50,12 +50,34 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/video-answers', [VideoQuestionAnswerController::class, 'store']);
     Route::get('/video-answers/{id}', [VideoQuestionAnswerController::class, 'show']);
 
+    /*
+    |----------------------------------------------------------------------
+    | 🟢 الطالب (role:user): التسجيل، الدروس، الامتحان، التقييم
+    |----------------------------------------------------------------------
+    */
+    Route::middleware('role:user')->group(function () {
+        // التسجيل في الكورسات
+        Route::get('/my-enrollments', [EnrollmentController::class, 'index']);
+        Route::post('/courses/{course}/enroll', [EnrollmentController::class, 'store']);
+
+        // دروس الكورس وحالة المشاهدة/الإكمال
+        Route::get('/courses/{course}/lessons', [StudentCourseController::class, 'lessons']);
+        Route::post('/courses/{course}/lessons/{video}/watch', [StudentCourseController::class, 'markWatched']);
+
+        // امتحان الكورس النهائي
+        Route::get('/courses/{course}/exam', [StudentExamController::class, 'show']);
+        Route::post('/courses/{course}/exam/start', [StudentExamController::class, 'start']);
+        Route::post('/courses/{course}/exam/answers', [StudentExamController::class, 'autosave']);
+        Route::post('/courses/{course}/exam/submit', [StudentExamController::class, 'submit']);
+        Route::get('/courses/{course}/exam/result', [StudentExamController::class, 'result']);
+    });
+
     // 🟢 Routes خاصة بالـ Admin فقط
     Route::middleware('role:admin')->group(function () {
         Route::get('/users', [UserController::class, 'index']);
         Route::post('/users', [UserController::class, 'store']);
         Route::delete('/users/{id}', [UserController::class, 'destroy']);
-        
+
         Route::post('/categories', [CategoryController::class, 'store']);
         Route::put('/categories/{id}', [CategoryController::class, 'update']);
         Route::delete('/categories/{id}', [CategoryController::class, 'destroy']);
@@ -86,6 +108,17 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // حذف الإجابات إذا لزم الأمر
         Route::delete('/video-answers/{id}', [VideoQuestionAnswerController::class, 'destroy']);
+
+        // إدارة امتحان الكورس النهائي
+        Route::get('/courses/{course}/exam/manage', [PublisherExamController::class, 'show']);
+        Route::post('/courses/{course}/exam', [PublisherExamController::class, 'upsert']);
+        Route::post('/courses/{course}/exam/publish', [PublisherExamController::class, 'publish']);
+        Route::post('/courses/{course}/exam/unpublish', [PublisherExamController::class, 'unpublish']);
+
+        // إدارة أسئلة الامتحان
+        Route::post('/courses/{course}/exam/questions', [ExamQuestionController::class, 'store']);
+        Route::put('/exam-questions/{examQuestion}', [ExamQuestionController::class, 'update']);
+        Route::delete('/exam-questions/{examQuestion}', [ExamQuestionController::class, 'destroy']);
     });
 
     // 🟢 Routes خاصة بالـ User والـ Publisher (تعديل البروفايل)

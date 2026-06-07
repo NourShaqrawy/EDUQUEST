@@ -2,9 +2,9 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 
 #[Fillable([
     'title',
@@ -16,8 +16,6 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 class Course extends Model
 {
     use HasFactory;
-
-
 
     public function category()
     {
@@ -38,11 +36,28 @@ class Course extends Model
     {
         return $this->hasMany(CourseCertificate::class);
     }
+
+    public function enrollments()
+    {
+        return $this->hasMany(Enrollment::class);
+    }
+
+    public function exam()
+    {
+        return $this->hasOne(CourseExam::class);
+    }
+
+    public function results()
+    {
+        return $this->hasMany(CourseResult::class);
+    }
+
     protected function getThumbnailAttribute($value)
     {
         if (strpos($value, 'http') === 0) {
             return $value;
         }
-        return asset('storage/' . $value);
+
+        return asset('storage/'.$value);
     }
 }

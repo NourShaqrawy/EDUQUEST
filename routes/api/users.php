@@ -1,31 +1,15 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Users\UserController;
-
-
+use Illuminate\Support\Facades\Route;
 
 Route::get('/users/status', function () {
     return ['status' => 'Users API is running'];
 });
 
+Route::middleware(['auth:sanctum', 'role:user'])->prefix('user')->group(function () {});
 
-
-
-Route::middleware(['auth:sanctum', 'role:user'])->prefix('user')->group(function () {
-
-});
-
-
-
-
-Route::middleware(['auth:sanctum', 'role:publisher'])->prefix('publisher')->group(function () {
-
-
-});
-
-
-
+Route::middleware(['auth:sanctum', 'role:publisher'])->prefix('publisher')->group(function () {});
 
 Route::middleware(['auth:sanctum', 'role:admin'])->prefix('admin')->group(function () {
 

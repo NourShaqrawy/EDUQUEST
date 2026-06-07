@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Enrollment;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -128,7 +129,14 @@ class VideoProgressionTest extends TestCase
 
     public function test_answering_all_questions_unlocks_next_video(): void
     {
-        $this->actingAsStudent();
+        $student = $this->actingAsStudent();
+
+        // التسجيل في الكورس شرط لفتح ما بعد الفيديو الأول (الفتح التسلسلي للمسجَّلين).
+        Enrollment::create([
+            'user_id' => $student->id,
+            'course_id' => $this->courseId,
+            'enrolled_at' => now(),
+        ]);
 
         $this->postJson('/api/video-answers', [
             'question_id' => $this->q1Id,
