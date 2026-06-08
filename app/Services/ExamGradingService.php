@@ -44,10 +44,15 @@ class ExamGradingService
         return round($correct / $totalQuestions * 100, 2);
     }
 
-    /** نسبة امتحان الكورس (مكوّن الـ 70%): الإجابات الصحيحة ÷ عدد الأسئلة × 100. */
+    /** نسبة امتحان الكورس (مكوّن الـ 70%): الإجابات الصحيحة ÷ عدد أسئلة المحاولة × 100.
+     *  الأسئلة غير المُجاب عنها تُحسب خاطئة (نقاطها صفر).
+     */
     public function examPercentage(ExamAttempt $attempt): float
     {
-        $totalQuestions = $attempt->exam->questions()->count();
+        // عدد الأسئلة المثبّتة على هذه المحاولة (المسحوبة عشوائياً عند البدء).
+        // إذا لم تكن مثبّتة (بيانات قديمة قبل الميزة)، نرجع لعدد أسئلة الامتحان.
+        $totalQuestions = $attempt->attemptQuestions()->count()
+            ?: $attempt->exam->questions()->count();
 
         if ($totalQuestions === 0) {
             return 0.0;

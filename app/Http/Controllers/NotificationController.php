@@ -11,21 +11,23 @@ class NotificationController extends Controller
 
     /**
      * قائمة إشعارات المستخدم الحالي (مع فلترة الاختياري unread=1).
+     * الشكل: { status, message, data: { notifications: paginator, unread_count } }
      */
     public function index(Request $request)
     {
-        $query = $request->user()->notifications();
+        $user  = $request->user();
+        $query = $user->notifications();
 
         if ($request->boolean('unread')) {
             $query->whereNull('read_at');
         }
 
-        $notifications = $query->paginate(20);
+        $notifications = $query->latest()->paginate(20);
+        $unreadCount   = $user->notifications()->whereNull('read_at')->count();
 
-        return response()->json([
-            'status' => 'success',
-            'unread_count' => $request->user()->notifications()->whereNull('read_at')->count(),
-            'data' => $notifications,
+        return $this->success([
+            'notifications' => $notifications,
+            'unread_count'  => $unreadCount,
         ]);
     }
 
@@ -34,8 +36,7 @@ class NotificationController extends Controller
      */
     public function unreadCount(Request $request)
     {
-        return response()->json([
-            'status' => 'success',
+        return $this->success([
             'unread_count' => $request->user()->notifications()->whereNull('read_at')->count(),
         ]);
     }
@@ -47,10 +48,10 @@ class NotificationController extends Controller
     {
         $validated = $request->validate([
             'user_id' => 'required|exists:users,id',
-            'type' => 'nullable|string|max:50',
-            'title' => 'required|string|max:255',
-            'body' => 'nullable|string',
-            'data' => 'nullable|array',
+            'type'    => 'nullable|string|max:50',
+            'title'   => 'required|string|max:255',
+            'body'    => 'nullable|string',
+            'data'    => 'nullable|array',
         ]);
 
         $notification = $this->notifications->send(
@@ -61,11 +62,7 @@ class NotificationController extends Controller
             $validated['data'] ?? null,
         );
 
-        return response()->json([
-            'status' => 'success',
-            'message' => 'Notification sent',
-            'data' => $notification,
-        ], 201);
+        return $this->success($notification, 'تم إرسال الإشعار.', 201);
     }
 
     /**
@@ -76,11 +73,7 @@ class NotificationController extends Controller
         $notification = $request->user()->notifications()->findOrFail($id);
         $notification->markAsRead();
 
-        return response()->json([
-            'status' => 'success',
-            'message' => 'Notification marked as read',
-            'data' => $notification,
-        ]);
+        return $this->success($notification, 'تم تمييز الإشعار كمقروء.');
     }
 
     /**
@@ -92,10 +85,7 @@ class NotificationController extends Controller
             ->whereNull('read_at')
             ->update(['read_at' => now()]);
 
-        return response()->json([
-            'status' => 'success',
-            'message' => 'All notifications marked as read',
-        ]);
+        return $this->message('تم تمييز جميع الإشعارات كمقروءة.');
     }
 
     /**
@@ -106,9 +96,6 @@ class NotificationController extends Controller
         $notification = $request->user()->notifications()->findOrFail($id);
         $notification->delete();
 
-        return response()->json([
-            'status' => 'success',
-            'message' => 'Notification deleted',
-        ]);
+        return $this->message('تم حذف الإشعار.');
     }
 }

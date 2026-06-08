@@ -34,7 +34,12 @@ class PublisherExamController extends Controller
     {
         $this->assertManagesCourse($course);
 
-        $exam = $this->exams->upsertExam($course, (int) $request->validated()['duration_minutes']);
+        $data = $request->validated();
+        $exam = $this->exams->upsertExam(
+            $course,
+            (int) $data['duration_minutes'],
+            (int) $data['questions_to_serve'],
+        );
 
         return $this->success(
             ExamResource::make($exam->loadCount('questions')),

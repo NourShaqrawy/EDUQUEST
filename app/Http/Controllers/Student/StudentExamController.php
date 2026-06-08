@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Student;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Student\AutosaveExamAnswerRequest;
+use App\Http\Requests\Student\StoreExamEventsRequest;
 use App\Http\Requests\Student\SubmitExamRequest;
 use App\Http\Resources\CourseResultResource;
 use App\Http\Resources\ExamAttemptResource;
@@ -11,6 +12,7 @@ use App\Http\Resources\ExamQuestionResource;
 use App\Models\Course;
 use App\Models\CourseResult;
 use App\Models\ExamAttempt;
+use App\Models\ExamAttemptEvent;
 use App\Services\ExamService;
 use App\Services\LessonProgressService;
 use Illuminate\Http\Request;
@@ -39,9 +41,9 @@ class StudentExamController extends Controller
             'is_enrolled' => $isEnrolled,
             'lessons_completed' => $lessonsCompleted,
             'exam' => $exam ? [
-                'duration_minutes' => $exam->duration_minutes,
-                'questions_count' => $exam->questions_count,
-                'is_published' => $exam->is_published,
+                'duration_minutes'   => $exam->duration_minutes,
+                'questions_count'    => $exam->questions_to_serve ?? $exam->questions_count,
+                'is_published'       => $exam->is_published,
             ] : null,
             'attempt' => $attempt ? ExamAttemptResource::make($attempt) : null,
             'can_start' => $isEnrolled
@@ -51,15 +53,19 @@ class StudentExamController extends Controller
         ]);
     }
 
-    /** بدء/استئناف الامتحان. يُرجع المحاولة (مع الوقت المتبقّي) والأسئلة دون الإجابة الصحيحة. */
+    /** بدء/استئناف الامتحان. يُرجع المحاولة (مع الوقت المتبقّي) والأسئلة المثبّتة بترتيبها العشوائي. */
     public function start(Request $request, Course $course)
     {
         $attempt = $this->exams->startOrResume($request->user(), $course);
 
-        $questions = $course->exam->questions()->with('options')->get();
+        // جلب الأسئلة المثبّتة على هذه المحاولة بترتيبها العشوائي المحفوظ.
+        $questions = $attempt->attemptQuestions()
+            ->with('question.options')
+            ->get()
+            ->map(fn ($aq) => $aq->question);
 
         return $this->success([
-            'attempt' => ExamAttemptResource::make($attempt),
+            'attempt'   => ExamAttemptResource::make($attempt),
             'questions' => ExamQuestionResource::collection($questions),
         ], 'تم بدء الامتحان.');
     }
@@ -94,6 +100,62 @@ class StudentExamController extends Controller
             'attempt' => ExamAttemptResource::make($attempt->fresh()),
             'result' => $result ? CourseResultResource::make($result) : null,
         ], 'تم تسليم الامتحان واحتساب التقييم.');
+    }
+
+    /** تسجيل أحداث المراقبة (خروج من ملء الشاشة، نسخ/لصق، مغادرة تبويب ...) دفعةً. */
+    public function events(StoreExamEventsRequest $request, Course $course)
+    {
+        $attempt = $this->exams->attemptForEvents($request->user(), $course);
+
+        // لا توجد محاولة → لا شيء نربط به الأحداث. نتجاهل بهدوء (المراقبة best-effort).
+        if (! $attempt) {
+            return $this->message('لا توجد محاولة امتحان نشطة.', 200);
+        }
+
+        $now = now();
+
+        $rows = collect($request->validated()['events'])->map(fn ($e) => [
+            'exam_attempt_id' => $attempt->id,
+            'type'            => $e['type'],
+            'meta'            => isset($e['meta']) ? json_encode($e['meta']) : null,
+            // نُطبّع client_at إلى صيغة MySQL — الفرونت يُرسلها ISO 8601 بـ ms وZ suffix
+            'client_at'       => isset($e['client_at'])
+                                    ? now()->parse($e['client_at'])->format('Y-m-d H:i:s')
+                                    : null,
+            'created_at'      => $now,  // ساعة الخادم — المرجعية الموثوقة
+            'updated_at'      => $now,
+        ])->all();
+
+        ExamAttemptEvent::insert($rows);
+
+        // §3 الضمان الدفاعي: fullscreen_exit في الدفعة → إنهاء فوري من الخادم.
+        // يغلق الثغرة حتى لو أوقف الطالب استدعاء /terminate كليّاً.
+        $hasFullscreenExit = collect($request->validated()['events'])
+            ->contains(fn ($e) => ($e['type'] ?? null) === 'fullscreen_exit');
+
+        if ($hasFullscreenExit && ! $attempt->isFinalized()) {
+            $this->exams->finalize($attempt, ExamAttempt::STATUS_SUBMITTED);
+        }
+
+        return $this->success(['received' => count($rows)], 'تم تسجيل الأحداث.');
+    }
+
+    /** إنهاء قسري بسبب مخالفة مراقبة (الخروج من ملء الشاشة). يُرجع نفس شكل submit. */
+    public function terminate(Request $request, Course $course)
+    {
+        $user   = $request->user();
+        $reason = (string) ($request->input('reason') ?? 'violation');
+
+        $attempt = $this->exams->terminate($user, $course, $reason);
+
+        $result = CourseResult::where('user_id', $user->id)
+            ->where('course_id', $course->id)
+            ->first();
+
+        return $this->success([
+            'attempt' => ExamAttemptResource::make($attempt->fresh()),
+            'result'  => $result ? CourseResultResource::make($result) : null,
+        ], 'تم إنهاء الامتحان.');
     }
 
     /** التقييم النهائي للطالب في الكورس. */

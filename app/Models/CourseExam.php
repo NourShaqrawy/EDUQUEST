@@ -18,15 +18,20 @@ class CourseExam extends Model
 
     public const MAX_OPTIONS = 4;
 
+    /** البنك يجب أن يحتوي على ضِعف عدد أسئلة الامتحان على الأقل. */
+    public const BANK_MULTIPLIER = 2;
+
     protected $fillable = [
         'course_id',
         'duration_minutes',
+        'questions_to_serve',
         'is_published',
     ];
 
     protected $casts = [
-        'duration_minutes' => 'integer',
-        'is_published' => 'boolean',
+        'duration_minutes'   => 'integer',
+        'questions_to_serve' => 'integer',
+        'is_published'       => 'boolean',
     ];
 
     public function course()

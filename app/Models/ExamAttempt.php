@@ -48,6 +48,16 @@ class ExamAttempt extends Model
         return $this->hasMany(ExamAttemptAnswer::class);
     }
 
+    public function events()
+    {
+        return $this->hasMany(ExamAttemptEvent::class);
+    }
+
+    public function attemptQuestions()
+    {
+        return $this->hasMany(ExamAttemptQuestion::class)->orderBy('display_order');
+    }
+
     /** هل ما زالت المحاولة قيد التنفيذ ولم تنتهِ مدتها؟ */
     public function isRunning(): bool
     {

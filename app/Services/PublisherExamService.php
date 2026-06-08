@@ -12,12 +12,15 @@ class PublisherExamService
 {
     public function __construct(private readonly NotificationService $notifications) {}
 
-    /** إنشاء/تحديث إعداد امتحان الكورس (المدة بالدقائق). */
-    public function upsertExam(Course $course, int $durationMinutes): CourseExam
+    /** إنشاء/تحديث إعداد امتحان الكورس (المدة بالدقائق وعدد الأسئلة المُقدَّمة للطالب). */
+    public function upsertExam(Course $course, int $durationMinutes, int $questionsToServe): CourseExam
     {
         return CourseExam::updateOrCreate(
             ['course_id' => $course->id],
-            ['duration_minutes' => $durationMinutes],
+            [
+                'duration_minutes'   => $durationMinutes,
+                'questions_to_serve' => $questionsToServe,
+            ],
         );
     }
 
@@ -63,12 +66,26 @@ class PublisherExamService
     /** نشر الامتحان بعد التحقق من استيفاء كل القيود. */
     public function publish(CourseExam $exam): CourseExam
     {
+        if (! $exam->questions_to_serve) {
+            throw ExamException::requirementsNotMet('يجب تحديد عدد أسئلة الامتحان (questions_to_serve) قبل النشر.');
+        }
+
         $questions = $exam->questions()->with('options')->get();
         $count = $questions->count();
 
-        if ($count < CourseExam::MIN_QUESTIONS || $count > CourseExam::MAX_QUESTIONS) {
+        $toServe = $exam->questions_to_serve;
+
+        if ($toServe < CourseExam::MIN_QUESTIONS || $toServe > CourseExam::MAX_QUESTIONS) {
             throw ExamException::requirementsNotMet(
-                'عدد الأسئلة يجب أن يكون بين '.CourseExam::MIN_QUESTIONS.' و'.CourseExam::MAX_QUESTIONS." (الحالي {$count})."
+                'عدد أسئلة الامتحان يجب أن يكون بين '.CourseExam::MIN_QUESTIONS.' و'.CourseExam::MAX_QUESTIONS." (الحالي {$toServe})."
+            );
+        }
+
+        $requiredBank = $toServe * CourseExam::BANK_MULTIPLIER;
+
+        if ($count < $requiredBank) {
+            throw ExamException::requirementsNotMet(
+                "البنك يحتوي على {$count} سؤالاً. يجب أن يحتوي على {$requiredBank} على الأقل (ضِعف عدد أسئلة الامتحان {$toServe})."
             );
         }
 
