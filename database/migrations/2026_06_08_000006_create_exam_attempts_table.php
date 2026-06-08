@@ -16,8 +16,8 @@ return new class extends Migration
             $table->bigIncrements('id');
             $table->foreignId('user_id')->constrained('users')->cascadeOnDelete();
             $table->foreignId('course_exam_id')->constrained('course_exams')->cascadeOnDelete();
-            $table->timestamp('started_at');
-            $table->timestamp('ends_at');
+            $table->timestamp('started_at')->useCurrent();
+            $table->timestamp('ends_at')->nullable();
             $table->timestamp('submitted_at')->nullable();
             $table->enum('status', ['in_progress', 'submitted', 'expired'])->default('in_progress');
             $table->decimal('score', 5, 2)->nullable(); // نسبة الامتحان 0..100
