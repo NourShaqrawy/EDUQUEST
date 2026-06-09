@@ -236,7 +236,7 @@ class FullDatabaseSeeder extends Seeder
                 'video_144p'  => $this->sharedVideo['144p'],
                 'video_360p'  => $this->sharedVideo['360p'],
                 'video_720p'  => $this->sharedVideo['720p'],
-                'duration'    => 180 + ($v * 45),
+                'duration'    => 5, // الفيديو المشترك الفعلي 5.8 ثانية
                 'order'       => $v,
                 'created_at'  => $now,
                 'updated_at'  => $now,
@@ -248,7 +248,7 @@ class FullDatabaseSeeder extends Seeder
                 $questionId = DB::table('video_questions')->insertGetId([
                     'video_id'      => $videoId,
                     'question'      => "سؤال الدرس {$v} رقم {$q}؟",
-                    'time_in_video' => $q * 40,
+                    'time_in_video' => $q === 1 ? 2 : 4, // الفيديو 5.8s → أسئلة عند 2s و4s
                     'created_at'    => $now,
                     'updated_at'    => $now,
                 ]);
