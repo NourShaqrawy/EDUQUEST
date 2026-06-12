@@ -91,6 +91,11 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/categories', [CategoryController::class, 'store']);
         Route::put('/categories/{id}', [CategoryController::class, 'update']);
         Route::delete('/categories/{id}', [CategoryController::class, 'destroy']);
+
+        // مراجعة الكورسات — الأدمن فقط
+        Route::get('/pending-courses', [CourseController::class, 'pending']);
+        Route::post('/courses/{id}/approve', [CourseController::class, 'approve']);
+        Route::post('/courses/{id}/reject', [CourseController::class, 'reject']);
     });
 
     // 🟢 Routes خاصة بالـ Admin والـ Publisher (إدارة الكورسات)

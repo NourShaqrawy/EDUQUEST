@@ -3,32 +3,35 @@
 namespace App\Http\Controllers;
 
 use App\Models\Course;
+use App\Models\User;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Auth;
 
 class CourseController extends Controller
 {
+    public function __construct(private readonly NotificationService $notifications) {}
+
     /**
-     * عرض جميع الكورسات
+     * عرض الكورسات المعتمدة فقط للزوار والطلاب.
      */
     public function index()
     {
-        // $courses = Course::with(['category', 'publisher'])->get();
-        $courses = Course::get();
+        $courses = Course::where('status', 'approved')->get();
         return response()->json($courses);
     }
 
     /**
-     * إنشاء كورس جديد مع رفع الصورة والربط بالفئة والناشر
+     * إنشاء كورس جديد — يُحفظ بحالة "pending" وتُرسَل إشعارات للمسؤولين.
      */
     public function store(Request $request)
     {
         $validatedData = $request->validate([
-            'title' => 'required|string|max:255',
-            'description' => 'required|string',
-            'thumbnail' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048',
-            'category_id' => 'required|exists:categories,id',
+            'title'        => 'required|string|max:255',
+            'description'  => 'required|string',
+            'thumbnail'    => 'required|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'category_id'  => 'required|exists:categories,id',
             'publisher_id' => 'required|exists:users,id',
         ]);
 
@@ -37,49 +40,136 @@ class CourseController extends Controller
             $validatedData['thumbnail'] = $path;
         }
 
+        $validatedData['status'] = 'pending';
         $course = Course::create($validatedData);
 
-        return response()->json(['message' => 'تم إنشاء الكورس بنجاح', 'course' => $course], 201);
+        // أرسل إشعاراً لكل المسؤولين (admin)
+        $publisher = Auth::user();
+        $admins    = User::where('role', 'admin')->get();
+        foreach ($admins as $admin) {
+            $this->notifications->send(
+                $admin->id,
+                'كورس جديد بانتظار المراجعة',
+                "قام الناشر \"{$publisher->name}\" برفع كورس جديد بعنوان \"{$course->title}\" — يرجى مراجعته.",
+                'course_pending',
+                ['course_id' => $course->id],
+            );
+        }
+
+        return response()->json(['message' => 'تم إنشاء الكورس بنجاح وهو بانتظار موافقة الإدارة', 'course' => $course], 201);
     }
 
     /**
-     * عرض كورس معين بالتفصيل
+     * عرض كورس واحد — متاح للجميع (الكورس المعتمد) أو للمالك/الأدمن.
      */
     public function show($id)
     {
-        // $course = Course::with(['category', 'publisher'])->findOrFail($id);
         $course = Course::findOrFail($id);
         return response()->json([$course]);
     }
 
     /**
-     * عرض كورسات الناشر الحالي فقط
+     * كورسات الناشر الحالي فقط (جميع الحالات).
      */
     public function myCourses()
     {
-        // جلب المستخدم الحالي وكورساته
-        $courses = Course::where('publisher_id', Auth::id())
+        $user = Auth::user();
+
+        // الأدمن يرى جميع الكورسات، الناشر يرى كورساته فقط
+        if ($user->role === 'admin') {
+            $courses = Course::get();
+        } else {
+            $courses = Course::where('publisher_id', $user->id)->get();
+        }
+
+        return response()->json($courses);
+    }
+
+    /**
+     * الكورسات المعلقة بانتظار الموافقة (أدمن فقط).
+     */
+    public function pending()
+    {
+        $courses = Course::with(['publisher', 'category'])
+            ->where('status', 'pending')
+            ->latest()
             ->get();
 
         return response()->json($courses);
     }
 
     /**
-     * تعديل بيانات الكورس (للناشر فقط)
+     * الموافقة على كورس (أدمن فقط) وإشعار الناشر.
+     */
+    public function approve($id)
+    {
+        $course = Course::with('publisher')->findOrFail($id);
+
+        if ($course->status === 'approved') {
+            return response()->json(['message' => 'الكورس معتمد مسبقاً'], 422);
+        }
+
+        $course->update(['status' => 'approved']);
+
+        if ($course->publisher) {
+            $this->notifications->send(
+                $course->publisher->id,
+                'تمت الموافقة على كورسك',
+                "تمت الموافقة على كورسك \"{$course->title}\" وأصبح متاحاً للطلاب.",
+                'course_approved',
+                ['course_id' => $course->id],
+            );
+        }
+
+        return response()->json(['message' => 'تمت الموافقة على الكورس', 'course' => $course]);
+    }
+
+    /**
+     * رفض كورس (أدمن فقط) وإشعار الناشر.
+     */
+    public function reject(Request $request, $id)
+    {
+        $course = Course::with('publisher')->findOrFail($id);
+
+        if ($course->status === 'rejected') {
+            return response()->json(['message' => 'الكورس مرفوض مسبقاً'], 422);
+        }
+
+        $reason = $request->input('reason', '');
+        $course->update(['status' => 'rejected']);
+
+        if ($course->publisher) {
+            $body = "للأسف تم رفض كورسك \"{$course->title}\".";
+            if ($reason) {
+                $body .= " السبب: {$reason}";
+            }
+            $this->notifications->send(
+                $course->publisher->id,
+                'تم رفض كورسك',
+                $body,
+                'course_rejected',
+                ['course_id' => $course->id],
+            );
+        }
+
+        return response()->json(['message' => 'تم رفض الكورس', 'course' => $course]);
+    }
+
+    /**
+     * تعديل بيانات الكورس (للناشر أو الأدمن).
      */
     public function update(Request $request, $id)
     {
         $course = Course::findOrFail($id);
 
-        // التحقق من أن المستخدم الحالي هو صاحب الكورس
-        if ($course->publisher_id !== Auth::id()) {
+        if (Auth::user()->role !== 'admin' && $course->publisher_id !== Auth::id()) {
             return response()->json(['message' => 'غير مسموح لك بتعديل هذا الكورس'], 403);
         }
 
         $validatedData = $request->validate([
-            'title' => 'sometimes|string|max:255',
+            'title'       => 'sometimes|string|max:255',
             'description' => 'sometimes|string',
-            'thumbnail' => 'sometimes|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'thumbnail'   => 'sometimes|image|mimes:jpeg,png,jpg,gif|max:2048',
             'category_id' => 'sometimes|exists:categories,id',
         ]);
 
@@ -95,14 +185,13 @@ class CourseController extends Controller
     }
 
     /**
-     * حذف الكورس (للناشر فقط)
+     * حذف الكورس.
      */
     public function destroy($id)
     {
         $course = Course::findOrFail($id);
 
-        // التحقق من أن المستخدم الحالي هو صاحب الكورس
-        if ($course->publisher_id !== Auth::id() || Auth::user()->role !== 'admin') {
+        if (Auth::user()->role !== 'admin' && $course->publisher_id !== Auth::id()) {
             return response()->json(['message' => 'غير مسموح لك بحذف هذا الكورس'], 403);
         }
 

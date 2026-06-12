@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Model;
     'category_id',
     'publisher_id',
     'thumbnail',
+    'status',
 ])]
 class Course extends Model
 {
