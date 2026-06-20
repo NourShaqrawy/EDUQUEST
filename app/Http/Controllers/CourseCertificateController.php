@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Resources\CourseCertificateResource;
 use App\Models\Course;
+use App\Models\CourseCertificate;
 use App\Services\CertificateService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
@@ -57,6 +58,43 @@ class CourseCertificateController extends Controller
             $justCreated ? 'تم إصدار الشهادة بنجاح. يمكنك تحميلها الآن.' : 'الشهادة مُصدرة مسبقاً.',
             $justCreated ? 201 : 200
         );
+    }
+
+    /**
+     * GET /api/my-certificates
+     *
+     * Returns all certificates issued to the authenticated student.
+     */
+    public function myAll(Request $request)
+    {
+        $certificates = CourseCertificate::where('user_id', $request->user()->id)
+            ->with(['user', 'course'])
+            ->latest('issued_at')
+            ->get();
+
+        return $this->success(CourseCertificateResource::collection($certificates));
+    }
+
+    /**
+     * GET /api/certificates/verify/{code}  — public, no auth required
+     *
+     * Returns certificate data if the code exists, or 404 if not found.
+     */
+    public function verify(string $code)
+    {
+        $certificate = CourseCertificate::where('certificate_code', $code)
+            ->with(['user', 'course'])
+            ->first();
+
+        if (! $certificate) {
+            return response()->json([
+                'status'  => 'not_found',
+                'message' => 'لم يتم العثور على شهادة بهذا الرمز.',
+                'data'    => null,
+            ], 404);
+        }
+
+        return $this->success(CourseCertificateResource::make($certificate));
     }
 
     /**

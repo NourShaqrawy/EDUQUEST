@@ -25,6 +25,9 @@ use Illuminate\Support\Facades\Route;
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 
+// التحقق من شهادة — عام بدون مصادقة
+Route::get('/certificates/verify/{code}', [CourseCertificateController::class, 'verify']);
+
 Route::get('/categories', [CategoryController::class, 'index']);
 Route::get('/categories/{id}', [CategoryController::class, 'show']);
 
@@ -83,6 +86,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/courses/{course}/exam/result', [StudentExamController::class, 'result']);
 
         // 🏆 شهادة الكورس
+        Route::get('/my-certificates', [CourseCertificateController::class, 'myAll']);
         Route::get('/courses/{course}/certificate', [CourseCertificateController::class, 'show']);
         Route::post('/courses/{course}/certificate', [CourseCertificateController::class, 'store']);
         Route::get('/courses/{course}/certificate/download', [CourseCertificateController::class, 'download']);
