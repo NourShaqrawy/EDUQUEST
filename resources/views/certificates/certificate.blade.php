@@ -23,7 +23,7 @@
   .frame-inner {
     position: absolute;
     inset: 11mm;
-    border: 1px solid #c9a84c;
+    border: 1px solid #a45dbe;
   }
 
   /* Corner ornaments */
@@ -31,7 +31,7 @@
     position: absolute;
     width: 18mm;
     height: 18mm;
-    border-color: #c9a84c;
+    border-color: #a45dbe;
     border-style: solid;
   }
   .corner-tl { top: 6mm;  left: 6mm;  border-width: 3px 0 0 3px; }
@@ -77,7 +77,7 @@
   .divider {
     width: 60mm;
     height: 1px;
-    background: #c9a84c;
+    background: #a45dbe;
     margin-bottom: 7mm;
   }
 
@@ -92,7 +92,7 @@
   .student-name {
     font-size: 22pt;
     color: #1e3a5f;
-    border-bottom: 1px solid #c9a84c;
+    border-bottom: 1px solid #a45dbe;
     padding-bottom: 2mm;
     margin-bottom: 6mm;
     min-width: 100mm;
@@ -115,8 +115,8 @@
   .level-badge {
     display: inline-block;
     padding: 2mm 8mm;
-    border: 1px solid #c9a84c;
-    color: #c9a84c;
+    border: 1px solid #a45dbe;
+    color: #a45dbe;
     font-size: 9pt;
     letter-spacing: 3px;
     text-transform: uppercase;
@@ -234,8 +234,6 @@
 
   <div class="title">Certificate</div>
   <div class="subtitle">of completion</div>
-
-  <div class="divider"></div>
 
   <div class="presented-to">This certificate is proudly presented to</div>
 
