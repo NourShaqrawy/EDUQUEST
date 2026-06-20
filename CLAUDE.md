@@ -65,6 +65,34 @@ Because broadcasting goes through the queue (`QUEUE_CONNECTION=database`), a `qu
 
 - **Course certificates.** The `course_certificates` table, [CourseCertificate](app/Models/CourseCertificate.php) model, and [CourseCertificateController](app/Http/Controllers/CourseCertificateController.php) exist, but no certificate routes are registered in `routes/api.php` — the "completing a course yields a certificate" flow is not actually reachable via the API yet.
 
+## Running the project (Windows)
+
+The project requires **PHP 8.4** (Symfony 8.x dependency). On this machine, PHP 8.4 is installed at `C:\php\php-8.4\` and XAMPP ships PHP 8.2 at `C:\xampp\php\`. System PATH gives XAMPP priority, so you must fix PATH once before running.
+
+### One-time PATH fix (run PowerShell as Administrator)
+
+```powershell
+PowerShell -ExecutionPolicy Bypass -File "d:\webDevelopping\github\مشروع_التخرج\EDUQUEST\fix-php-path.ps1"
+```
+
+This script (`fix-php-path.ps1` in the project root) removes `C:\xampp\php` from System PATH and adds `C:\php\php-8.4` at the front. Restart all terminals after running it.
+
+Verify with: `php --version` → should show **PHP 8.4.x**
+
+### Full startup (two terminals)
+
+**Terminal 1 — API server + queue + logs:**
+```bash
+composer dev
+```
+
+**Terminal 2 — WebSocket server (real-time broadcasting):**
+```bash
+php artisan reverb:start
+```
+
+Both must be running for notifications/broadcasting to work end-to-end. The DB row is written synchronously even without `reverb`, but the WebSocket event is only delivered when Reverb is running.
+
 ## Config notes
 
 Default `DB_CONNECTION` is `sqlite`; queue, cache, and sessions default to the `database` driver in `.env.example`. Run `composer setup` for first-time install (copies `.env`, generates key, migrates, builds assets).
