@@ -12,7 +12,7 @@ class CourseCertificateResource extends JsonResource
             'id'               => $this->id,
             'certificate_code' => $this->certificate_code,
             'level'            => $this->level,
-            'issued_at'        => $this->issued_at?->toISOString(),
+            'issued_at'        => $this->issued_at?->toIso8601String(),
             'student' => [
                 'id'   => $this->user->id,
                 'name' => $this->user->name,

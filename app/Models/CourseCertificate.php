@@ -11,7 +11,9 @@ class CourseCertificate extends Model
 {
     use HasFactory;
 
-    protected $dates = ['issued_at'];
+    protected $casts = [
+        'issued_at' => 'datetime',
+    ];
 
     public function user()
     {

@@ -13,6 +13,8 @@ use App\Models\Course;
 use App\Models\CourseResult;
 use App\Models\ExamAttempt;
 use App\Models\ExamAttemptEvent;
+use App\Services\CertificateService;
+use App\Services\ExamGradingService;
 use App\Services\ExamService;
 use App\Services\LessonProgressService;
 use Illuminate\Http\Request;
@@ -22,6 +24,7 @@ class StudentExamController extends Controller
     public function __construct(
         private readonly ExamService $exams,
         private readonly LessonProgressService $lessonProgress,
+        private readonly CertificateService $certificates,
     ) {}
 
     /** نظرة عامة على امتحان الكورس وجاهزية الطالب لدخوله (بدون بدء المحاولة). */
@@ -31,11 +34,24 @@ class StudentExamController extends Controller
         $exam = $course->exam()->withCount('questions')->first();
 
         $attempt = $exam
-            ? ExamAttempt::where('user_id', $user->id)->where('course_exam_id', $exam->id)->first()
+            ? ExamAttempt::where('user_id', $user->id)
+                ->where('course_exam_id', $exam->id)
+                ->latest()
+                ->first()
             : null;
 
         $isEnrolled = $user->isEnrolledIn($course->id);
         $lessonsCompleted = $this->lessonProgress->hasCompletedAllLessons($user, $course);
+
+        // التحقق من النجاح السابق لمنع إعادة التقديم بعد الاجتياز.
+        $alreadyPassed = false;
+        if ($attempt?->isFinalized()) {
+            $courseResult = CourseResult::where('user_id', $user->id)
+                ->where('course_id', $course->id)
+                ->first();
+            $alreadyPassed = $courseResult &&
+                (float) $courseResult->final_score >= ExamGradingService::PASS_THRESHOLD;
+        }
 
         return $this->success([
             'is_enrolled' => $isEnrolled,
@@ -49,7 +65,7 @@ class StudentExamController extends Controller
             'can_start' => $isEnrolled
                 && $exam?->is_published
                 && $lessonsCompleted
-                && ! ($attempt && $attempt->isFinalized()),
+                && ! ($attempt && $attempt->isFinalized() && $alreadyPassed),
         ]);
     }
 
@@ -95,6 +111,11 @@ class StudentExamController extends Controller
         $result = CourseResult::where('user_id', $user->id)
             ->where('course_id', $course->id)
             ->first();
+
+        // إصدار الشهادة تلقائياً إذا كانت النتيجة مؤهّلة (صامت — لا يُوقف الاستجابة عند الفشل).
+        if ($result && (float) $result->final_score >= 60) {
+            try { $this->certificates->requestCertificate($user, $course); } catch (\Throwable) {}
+        }
 
         return $this->success([
             'attempt' => ExamAttemptResource::make($attempt->fresh()),
@@ -151,6 +172,11 @@ class StudentExamController extends Controller
         $result = CourseResult::where('user_id', $user->id)
             ->where('course_id', $course->id)
             ->first();
+
+        // إصدار الشهادة تلقائياً إذا كانت النتيجة مؤهّلة (صامت).
+        if ($result && (float) $result->final_score >= 60) {
+            try { $this->certificates->requestCertificate($user, $course); } catch (\Throwable) {}
+        }
 
         return $this->success([
             'attempt' => ExamAttemptResource::make($attempt->fresh()),

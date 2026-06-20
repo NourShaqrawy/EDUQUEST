@@ -8,6 +8,7 @@ use App\Jobs\ExamFinalCountdown;
 use App\Jobs\FinalizeExamAttempt;
 use App\Models\Course;
 use App\Models\CourseExam;
+use App\Models\CourseResult;
 use App\Models\ExamAttempt;
 use App\Models\ExamAttemptAnswer;
 use App\Models\ExamAttemptEvent;
@@ -35,19 +36,28 @@ class ExamService
 
         $existing = ExamAttempt::where('user_id', $user->id)
             ->where('course_exam_id', $exam->id)
+            ->latest()
             ->first();
 
         if ($existing) {
-            if ($existing->isFinalized()) {
-                throw ExamException::alreadyAttempted();
+            if ($existing->isRunning()) {
+                return $existing; // استئناف محاولة قيد التنفيذ — الأسئلة مثبّتة في exam_attempt_questions
             }
 
-            if ($existing->hasTimeExpired()) {
+            if ($existing->hasTimeExpired() && ! $existing->isFinalized()) {
                 $this->finalize($existing, ExamAttempt::STATUS_EXPIRED);
-                throw ExamException::alreadyAttempted();
             }
 
-            return $existing; // استئناف محاولة قيد التنفيذ — الأسئلة مثبّتة في exam_attempt_questions
+            // إذا نجح الطالب سابقاً → لا يُسمح بإعادة التقديم
+            $courseResult = CourseResult::where('user_id', $user->id)
+                ->where('course_id', $course->id)
+                ->first();
+
+            if ($courseResult && (float) $courseResult->final_score >= ExamGradingService::PASS_THRESHOLD) {
+                throw ExamException::alreadyPassed();
+            }
+
+            // رسب الطالب → يُسمح بإنشاء محاولة جديدة (fall through)
         }
 
         $now = Carbon::now();
@@ -188,6 +198,7 @@ class ExamService
 
         return ExamAttempt::where('user_id', $user->id)
             ->where('course_exam_id', $exam->id)
+            ->latest()
             ->first();
     }
 
@@ -224,6 +235,7 @@ class ExamService
 
         $attempt = ExamAttempt::where('user_id', $user->id)
             ->where('course_exam_id', $exam->id)
+            ->latest()
             ->first();
 
         if (! $attempt || $attempt->isFinalized()) {

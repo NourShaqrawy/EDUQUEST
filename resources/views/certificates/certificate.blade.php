@@ -77,7 +77,7 @@
   .divider {
     width: 60mm;
     height: 1px;
-    background: linear-gradient(to right, transparent, #c9a84c, transparent);
+    background: #c9a84c;
     margin-bottom: 7mm;
   }
 
@@ -149,6 +149,75 @@
     border-top: 1px solid #ddd;
     padding-top: 1mm;
   }
+
+  /* Platform seal — pure CSS circles, DomPDF-safe */
+  .seal {
+    position: absolute;
+    bottom: 16mm;
+    right: 16mm;
+    width: 42mm;
+    height: 42mm;
+  }
+  .seal-ring-outer {
+    position: absolute;
+    top: 0; left: 0;
+    width: 42mm; height: 42mm;
+    border-radius: 50%;
+    border: 2.5px solid #a45dbe;
+  }
+  .seal-ring-mid {
+    position: absolute;
+    top: 2mm; left: 2mm;
+    width: 38mm; height: 38mm;
+    border-radius: 50%;
+    border: 1px solid #a45dbe;
+  }
+  .seal-ring-inner {
+    position: absolute;
+    top: 3.5mm; left: 3.5mm;
+    width: 35mm; height: 35mm;
+    border-radius: 50%;
+    border: 2px solid #a45dbe;
+  }
+  .seal-body {
+    position: absolute;
+    top: 10mm; left: 0;
+    width: 42mm;
+    text-align: center;
+    color: #a45dbe;
+  }
+  .seal-stars-top {
+    font-size: 6pt;
+    letter-spacing: 3px;
+    margin-bottom: 1.5mm;
+  }
+  .seal-brand {
+    font-size: 9.5pt;
+    font-weight: bold;
+    letter-spacing: 1px;
+    margin-bottom: 1.5mm;
+  }
+  .seal-line {
+    width: 20mm;
+    height: 1px;
+    background-color: #a45dbe;
+    margin: 0 auto 1.5mm auto;
+  }
+  .seal-cert {
+    font-size: 6pt;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin-bottom: 1.5mm;
+  }
+  .seal-platform {
+    font-size: 5pt;
+    letter-spacing: 0.5px;
+    margin-bottom: 1.5mm;
+  }
+  .seal-stars-bot {
+    font-size: 6pt;
+    letter-spacing: 3px;
+  }
 </style>
 </head>
 <body>
@@ -198,6 +267,20 @@
       <div class="footer-label">Authorized by</div>
       <div class="footer-value">EduQuest Platform</div>
     </div>
+  </div>
+</div>
+
+<div class="seal">
+  <div class="seal-ring-outer"></div>
+  <div class="seal-ring-mid"></div>
+  <div class="seal-ring-inner"></div>
+  <div class="seal-body">
+    <div class="seal-stars-top">&#9733; &#9733; &#9733;</div>
+    <div class="seal-brand">EduQuest</div>
+    <div class="seal-line"></div>
+    <div class="seal-cert">CERTIFIED</div>
+    <div class="seal-platform">Accredited Platform</div>
+    <div class="seal-stars-bot">&#9670; &#9670; &#9670;</div>
   </div>
 </div>
 

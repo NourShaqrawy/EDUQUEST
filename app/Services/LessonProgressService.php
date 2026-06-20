@@ -26,7 +26,7 @@ class LessonProgressService
     }
 
     /**
-     * شرط دخول الامتحان: مشاهدة جميع دروس الكورس + الإجابة على جميع أسئلة الدروس.
+     * شرط دخول الامتحان: الإجابة على جميع أسئلة الدروس (المشاهدة ليست مطلوبة).
      */
     public function hasCompletedAllLessons(User $user, Course $course): bool
     {
@@ -34,14 +34,6 @@ class LessonProgressService
 
         if ($videoIds->isEmpty()) {
             return false; // كورس بلا دروس لا يُتاح له امتحان
-        }
-
-        $watchedCount = LessonProgress::where('user_id', $user->id)
-            ->whereIn('course_video_id', $videoIds)
-            ->count();
-
-        if ($watchedCount < $videoIds->count()) {
-            return false;
         }
 
         $totalQuestions = VideoQuestion::whereIn('video_id', $videoIds)->count();
