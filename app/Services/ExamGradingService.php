@@ -20,8 +20,11 @@ class ExamGradingService
 
     public const EXAM_WEIGHT = 0.70;
 
-    /** عتبة الحصول على شهادة (ودرجاتها). */
+    /** عتبة اجتياز الكورس (للإشعارات). */
     public const PASS_THRESHOLD = 50.0;
+
+    /** الحد الأدنى للدرجة النهائية للحصول على شهادة. */
+    public const CERTIFICATE_THRESHOLD = 60.0;
 
     /**
      * نسبة أسئلة الدروس (مكوّن الـ 30%): مجموع الإجابات الصحيحة على كل أسئلة الكورس
@@ -140,13 +143,13 @@ class ExamGradingService
         }
     }
 
-    /** تعيين مستوى الشهادة من الدرجة النهائية (عدّل العتبات حسب سياستك). */
+    /** تعيين مستوى الشهادة من الدرجة النهائية. */
     private function levelFor(float $finalScore): ?string
     {
         return match (true) {
             $finalScore >= 85 => 'excellent',
             $finalScore >= 70 => 'good',
-            $finalScore >= self::PASS_THRESHOLD => 'average',
+            $finalScore >= self::CERTIFICATE_THRESHOLD => 'average',
             default => null,
         };
     }

@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CategoryController;
+use App\Http\Controllers\CourseCertificateController;
 use App\Http\Controllers\CourseController;
 use App\Http\Controllers\CourseVideoController;
 use App\Http\Controllers\NotificationController;
@@ -80,6 +81,11 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/courses/{course}/exam/events', [StudentExamController::class, 'events']);
         Route::post('/courses/{course}/exam/terminate', [StudentExamController::class, 'terminate']);
         Route::get('/courses/{course}/exam/result', [StudentExamController::class, 'result']);
+
+        // 🏆 شهادة الكورس
+        Route::get('/courses/{course}/certificate', [CourseCertificateController::class, 'show']);
+        Route::post('/courses/{course}/certificate', [CourseCertificateController::class, 'store']);
+        Route::get('/courses/{course}/certificate/download', [CourseCertificateController::class, 'download']);
     });
 
     // 🟢 Routes خاصة بالـ Admin فقط

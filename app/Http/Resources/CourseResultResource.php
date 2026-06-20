@@ -19,6 +19,7 @@ class CourseResultResource extends JsonResource
                 'exam' => (int) (ExamGradingService::EXAM_WEIGHT * 100),
             ],
             'passed' => (float) $this->final_score >= ExamGradingService::PASS_THRESHOLD,
+            'eligible_for_certificate' => (float) $this->final_score >= ExamGradingService::CERTIFICATE_THRESHOLD,
         ];
     }
 }
