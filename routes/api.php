@@ -104,6 +104,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // مراجعة الكورسات — الأدمن فقط
         Route::get('/pending-courses', [CourseController::class, 'pending']);
+        Route::get('/rejected-courses', [CourseController::class, 'rejected']);
         Route::post('/courses/{id}/approve', [CourseController::class, 'approve']);
         Route::post('/courses/{id}/reject', [CourseController::class, 'reject']);
     });

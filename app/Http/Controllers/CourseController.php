@@ -105,6 +105,19 @@ class CourseController extends Controller
     }
 
     /**
+     * الكورسات المرفوضة (أدمن فقط).
+     */
+    public function rejected()
+    {
+        $courses = Course::with(['publisher', 'category'])
+            ->where('status', 'rejected')
+            ->latest()
+            ->get();
+
+        return response()->json($courses);
+    }
+
+    /**
      * الموافقة على كورس (أدمن فقط) وإشعار الناشر.
      */
     public function approve($id)
@@ -148,7 +161,7 @@ class CourseController extends Controller
         }
 
         $reason = $request->input('reason', '');
-        $course->update(['status' => 'rejected']);
+        $course->update(['status' => 'rejected', 'rejection_reason' => $reason ?: null]);
 
         if ($course->publisher) {
             $bodyAr = "للأسف تم رفض كورسك \"{$course->title}\".";
