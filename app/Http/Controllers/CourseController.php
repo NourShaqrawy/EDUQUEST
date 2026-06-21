@@ -52,7 +52,13 @@ class CourseController extends Controller
                 'كورس جديد بانتظار المراجعة',
                 "قام الناشر \"{$publisher->name}\" برفع كورس جديد بعنوان \"{$course->title}\" — يرجى مراجعته.",
                 'course_pending',
-                ['course_id' => $course->id],
+                [
+                    'course_id' => $course->id,
+                    'title_en'  => 'New course pending review',
+                    'title_ar'  => 'كورس جديد بانتظار المراجعة',
+                    'body_en'   => "Publisher \"{$publisher->name}\" uploaded a new course \"{$course->title}\" — please review it.",
+                    'body_ar'   => "قام الناشر \"{$publisher->name}\" برفع كورس جديد بعنوان \"{$course->title}\" — يرجى مراجعته.",
+                ],
             );
         }
 
@@ -117,7 +123,13 @@ class CourseController extends Controller
                 'تمت الموافقة على كورسك',
                 "تمت الموافقة على كورسك \"{$course->title}\" وأصبح متاحاً للطلاب.",
                 'course_approved',
-                ['course_id' => $course->id],
+                [
+                    'course_id' => $course->id,
+                    'title_en'  => 'Your course has been approved',
+                    'title_ar'  => 'تمت الموافقة على كورسك',
+                    'body_en'   => "Your course \"{$course->title}\" has been approved and is now available to students.",
+                    'body_ar'   => "تمت الموافقة على كورسك \"{$course->title}\" وأصبح متاحاً للطلاب.",
+                ],
             );
         }
 
@@ -139,16 +151,24 @@ class CourseController extends Controller
         $course->update(['status' => 'rejected']);
 
         if ($course->publisher) {
-            $body = "للأسف تم رفض كورسك \"{$course->title}\".";
+            $bodyAr = "للأسف تم رفض كورسك \"{$course->title}\".";
+            $bodyEn = "Unfortunately, your course \"{$course->title}\" has been rejected.";
             if ($reason) {
-                $body .= " السبب: {$reason}";
+                $bodyAr .= " السبب: {$reason}";
+                $bodyEn .= " Reason: {$reason}";
             }
             $this->notifications->send(
                 $course->publisher->id,
                 'تم رفض كورسك',
-                $body,
+                $bodyAr,
                 'course_rejected',
-                ['course_id' => $course->id],
+                [
+                    'course_id' => $course->id,
+                    'title_en'  => 'Your course has been rejected',
+                    'title_ar'  => 'تم رفض كورسك',
+                    'body_en'   => $bodyEn,
+                    'body_ar'   => $bodyAr,
+                ],
             );
         }
 

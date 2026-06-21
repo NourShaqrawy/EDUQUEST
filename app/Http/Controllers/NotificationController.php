@@ -47,19 +47,31 @@ class NotificationController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'user_id' => 'required|exists:users,id',
-            'type'    => 'nullable|string|max:50',
-            'title'   => 'required|string|max:255',
-            'body'    => 'nullable|string',
-            'data'    => 'nullable|array',
+            'user_id'  => 'required|exists:users,id',
+            'type'     => 'nullable|string|max:50',
+            'title'    => 'required|string|max:255',
+            'title_en' => 'nullable|string|max:255',
+            'title_ar' => 'nullable|string|max:255',
+            'body'     => 'nullable|string',
+            'body_en'  => 'nullable|string',
+            'body_ar'  => 'nullable|string',
+            'data'     => 'nullable|array',
         ]);
+
+        // دمج الحقول الثنائية داخل data حتى تُحفظ في الحقل JSON
+        $data = $validated['data'] ?? [];
+        foreach (['title_en', 'title_ar', 'body_en', 'body_ar'] as $key) {
+            if (! empty($validated[$key])) {
+                $data[$key] = $validated[$key];
+            }
+        }
 
         $notification = $this->notifications->send(
             (int) $validated['user_id'],
             $validated['title'],
             $validated['body'] ?? null,
             $validated['type'] ?? 'general',
-            $validated['data'] ?? null,
+            $data ?: null,
         );
 
         return $this->success($notification, 'تم إرسال الإشعار.', 201);

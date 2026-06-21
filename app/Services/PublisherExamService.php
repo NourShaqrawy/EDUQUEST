@@ -110,7 +110,13 @@ class PublisherExamService
             'امتحان جديد متاح',
             "أصبح امتحان كورس \"{$course->title}\" متاحاً الآن. أكمل الدروس لتتمكّن من دخوله.",
             'exam_published',
-            ['course_id' => $course->id],
+            [
+                'course_id' => $course->id,
+                'title_en'  => 'A new exam is now available',
+                'title_ar'  => 'امتحان جديد متاح',
+                'body_en'   => "The exam for \"{$course->title}\" is now available. Complete the lessons to unlock it.",
+                'body_ar'   => "أصبح امتحان كورس \"{$course->title}\" متاحاً الآن. أكمل الدروس لتتمكّن من دخوله.",
+            ],
         );
 
         return $exam;

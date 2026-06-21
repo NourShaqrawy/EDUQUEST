@@ -49,19 +49,15 @@ class UserController extends Controller
             'name'     => 'nullable|string|max:255',
             'email'    => 'nullable|email|unique:users,email,' . $user->id,
             'password' => 'nullable|string|min:6',
+            'theme'    => 'nullable|string|in:light,dark',
+            'language' => 'nullable|string|in:en,ar',
         ]);
 
-        if ($request->name) {
-            $user->name = $request->name;
-        }
-
-        if ($request->email) {
-            $user->email = $request->email;
-        }
-
-        if ($request->password) {
-            $user->password = Hash::make($request->password);
-        }
+        if ($request->name)     $user->name     = $request->name;
+        if ($request->email)    $user->email    = $request->email;
+        if ($request->password) $user->password = Hash::make($request->password);
+        if ($request->filled('theme'))    $user->theme    = $request->theme;
+        if ($request->filled('language')) $user->language = $request->language;
 
         $user->save();
 

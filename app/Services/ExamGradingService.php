@@ -119,25 +119,44 @@ class ExamGradingService
     {
         $passed = $finalScore >= self::PASS_THRESHOLD;
 
+        $titleAr = $passed ? 'لقد اجتزت الامتحان 🎉' : 'لم تجتز الامتحان';
+        $titleEn = $passed ? 'You passed the exam 🎉' : 'You did not pass the exam';
+        $bodyAr  = "نتيجتك النهائية في كورس \"{$course->title}\": {$finalScore}%.";
+        $bodyEn  = "Your final score in \"{$course->title}\": {$finalScore}%.";
+
         $this->notifications->send(
             $user->id,
-            $passed ? 'لقد اجتزت الامتحان 🎉' : 'لم تجتز الامتحان',
-            "نتيجتك النهائية في كورس \"{$course->title}\": {$finalScore}%.",
+            $titleAr,
+            $bodyAr,
             'exam_result',
-            ['course_id' => $course->id, 'final_score' => $finalScore, 'passed' => $passed],
+            [
+                'course_id'   => $course->id,
+                'final_score' => $finalScore,
+                'passed'      => $passed,
+                'title_en'    => $titleEn,
+                'title_ar'    => $titleAr,
+                'body_en'     => $bodyEn,
+                'body_ar'     => $bodyAr,
+            ],
         );
 
         // شهادة صدرت لأول مرة في هذه المحاولة فقط (تجنّباً للتكرار)
         if ($certificate && $certificate->wasRecentlyCreated) {
+            $certBodyAr = "حصلت على شهادة بمستوى \"{$certificate->level}\" في كورس \"{$course->title}\".";
+            $certBodyEn = "You earned a \"{$certificate->level}\" certificate in \"{$course->title}\".";
             $this->notifications->send(
                 $user->id,
                 'تهانينا! حصلت على شهادة 🏆',
-                "حصلت على شهادة بمستوى \"{$certificate->level}\" في كورس \"{$course->title}\".",
+                $certBodyAr,
                 'certificate',
                 [
-                    'course_id' => $course->id,
+                    'course_id'        => $course->id,
                     'certificate_code' => $certificate->certificate_code,
-                    'level' => $certificate->level,
+                    'level'            => $certificate->level,
+                    'title_en'         => 'Congratulations! You earned a certificate 🏆',
+                    'title_ar'         => 'تهانينا! حصلت على شهادة 🏆',
+                    'body_en'          => $certBodyEn,
+                    'body_ar'          => $certBodyAr,
                 ],
             );
         }

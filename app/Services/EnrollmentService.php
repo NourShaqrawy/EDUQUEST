@@ -29,7 +29,13 @@ class EnrollmentService
             'تم تسجيلك في كورس جديد',
             "لقد سجّلت في كورس \"{$course->title}\" بنجاح.",
             'enrollment',
-            ['course_id' => $course->id],
+            [
+                'course_id' => $course->id,
+                'title_en'  => 'You have enrolled in a new course',
+                'title_ar'  => 'تم تسجيلك في كورس جديد',
+                'body_en'   => "You have successfully enrolled in \"{$course->title}\".",
+                'body_ar'   => "لقد سجّلت في كورس \"{$course->title}\" بنجاح.",
+            ],
         );
 
         return $enrollment;
