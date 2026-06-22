@@ -39,13 +39,13 @@ class CourseDeleteRequestController extends Controller
         }
 
         $request->validate([
-            'reason' => 'required|string|min:10|max:1000',
+            'reason' => 'nullable|string|max:1000',
         ]);
 
         $deleteRequest = CourseDeleteRequest::create([
             'course_id'    => $courseId,
             'publisher_id' => $publisher->id,
-            'reason'       => $request->reason,
+            'reason'       => $request->reason ?? null,
             'status'       => 'pending',
         ]);
 
