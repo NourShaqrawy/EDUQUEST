@@ -13,10 +13,16 @@ use Illuminate\Database\Eloquent\Model;
     'publisher_id',
     'thumbnail',
     'status',
+    'has_certificate',
+    'completion_status',
 ])]
 class Course extends Model
 {
     use HasFactory;
+
+    protected $casts = [
+        'has_certificate' => 'boolean',
+    ];
 
     public function category()
     {

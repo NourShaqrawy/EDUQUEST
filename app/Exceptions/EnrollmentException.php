@@ -13,4 +13,9 @@ class EnrollmentException extends ApiException
     {
         return new self('يجب التسجيل في الكورس أولاً.', 403);
     }
+
+    public static function notAvailable(): self
+    {
+        return new self('هذا الكورس غير متاح للتسجيل حالياً.', 422);
+    }
 }

@@ -22,6 +22,8 @@ class ExamQuestionController extends Controller
     public function store(StoreExamQuestionRequest $request, Course $course)
     {
         $this->assertManagesCourse($course);
+        $this->assertCourseHasCertificate($course);
+        $this->assertCourseEditable($course);
 
         $exam = $course->exam;
 
@@ -37,7 +39,9 @@ class ExamQuestionController extends Controller
     /** تعديل سؤال امتحان (واستبدال خياراته إن أُرسلت). */
     public function update(UpdateExamQuestionRequest $request, ExamQuestion $examQuestion)
     {
-        $this->assertManagesCourse($examQuestion->exam->course);
+        $course = $examQuestion->exam->course;
+        $this->assertManagesCourse($course);
+        $this->assertCourseEditable($course);
 
         $question = $this->exams->updateQuestion($examQuestion, $request->validated());
 
@@ -47,7 +51,9 @@ class ExamQuestionController extends Controller
     /** حذف سؤال امتحان. */
     public function destroy(ExamQuestion $examQuestion)
     {
-        $this->assertManagesCourse($examQuestion->exam->course);
+        $course = $examQuestion->exam->course;
+        $this->assertManagesCourse($course);
+        $this->assertCourseEditable($course);
 
         $this->exams->deleteQuestion($examQuestion);
 

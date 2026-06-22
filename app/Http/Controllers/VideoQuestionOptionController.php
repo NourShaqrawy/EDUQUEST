@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\ManagesCourses;
 use App\Models\VideoQuestion;
 use App\Models\VideoQuestionAnswer;
 use App\Models\VideoQuestionOption;
@@ -10,6 +11,8 @@ use Illuminate\Http\Request;
 
 class VideoQuestionOptionController extends Controller
 {
+    use ManagesCourses;
+
     public function index(Request $request, $question_id)
     {
         $user = $request->user();
@@ -40,6 +43,10 @@ class VideoQuestionOptionController extends Controller
             'option_text' => 'required|string|max:500',
             'is_correct' => 'required|boolean',
         ]);
+
+        $question = VideoQuestion::with('video.course')->findOrFail($validated['question_id']);
+        $this->assertManagesCourse($question->video->course);
+        $this->assertCourseEditable($question->video->course);
 
         // Enforce a single correct answer per question
         if ($validated['is_correct']) {
@@ -103,7 +110,9 @@ class VideoQuestionOptionController extends Controller
 
     public function update(Request $request, $id)
     {
-        $option = VideoQuestionOption::findOrFail($id);
+        $option = VideoQuestionOption::with('question.video.course')->findOrFail($id);
+        $this->assertManagesCourse($option->question->video->course);
+        $this->assertCourseEditable($option->question->video->course);
 
         $validated = $request->validate([
             'option_text' => 'sometimes|string|max:500',
@@ -128,7 +137,10 @@ class VideoQuestionOptionController extends Controller
 
     public function destroy($id)
     {
-        $option = VideoQuestionOption::findOrFail($id);
+        $option = VideoQuestionOption::with('question.video.course')->findOrFail($id);
+        $this->assertManagesCourse($option->question->video->course);
+        $this->assertCourseEditable($option->question->video->course);
+
         $option->delete();
 
         return response()->json([

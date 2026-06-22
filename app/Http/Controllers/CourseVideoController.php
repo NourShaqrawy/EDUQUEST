@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\ManagesCourses;
 use App\Models\Course;
 use App\Models\CourseVideo;
 use App\Models\VideoQuestionAnswer;
@@ -14,6 +15,8 @@ use Throwable;
 
 class CourseVideoController extends Controller
 {
+    use ManagesCourses;
+
     // الدقات المطلوبة
     private $resolutions = [
         '144p' => 'scale=-2:144',
@@ -24,7 +27,11 @@ class CourseVideoController extends Controller
     public function index($courseId)
     {
         $course = $this->findManagedCourse($courseId);
-        $videos = $course->courseVideos()->orderBy('order')->orderBy('id')->get();
+        $videos = $course->courseVideos()
+            ->withCount('videoQuestions')
+            ->orderBy('order')
+            ->orderBy('id')
+            ->get();
 
         return response()->json(['course' => $course, 'videos' => $videos]);
     }
@@ -88,6 +95,7 @@ class CourseVideoController extends Controller
     public function store(Request $request, $courseId)
     {
         $course = $this->findManagedCourse($courseId);
+        $this->assertCourseEditable($course);
 
         $validated = $request->validate([
             'title' => 'required|string|max:255',
@@ -130,6 +138,7 @@ class CourseVideoController extends Controller
     public function update(Request $request, $courseId, $videoId)
     {
         $course = $this->findManagedCourse($courseId);
+        $this->assertCourseEditable($course);
         $video = $course->courseVideos()->findOrFail($videoId);
 
         $validated = $request->validate([
@@ -181,6 +190,7 @@ class CourseVideoController extends Controller
     public function destroy($courseId, $videoId)
     {
         $course = $this->findManagedCourse($courseId);
+        $this->assertCourseEditable($course);
         $video = $course->courseVideos()->findOrFail($videoId);
 
         $paths = [$video->video_path, $video->video_144p, $video->video_360p, $video->video_720p];

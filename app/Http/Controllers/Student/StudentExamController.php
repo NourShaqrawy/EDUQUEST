@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Student;
 
+use App\Exceptions\ApiException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Student\AutosaveExamAnswerRequest;
 use App\Http\Requests\Student\StoreExamEventsRequest;
@@ -55,6 +56,7 @@ class StudentExamController extends Controller
 
         return $this->success([
             'is_enrolled' => $isEnrolled,
+            'has_certificate' => (bool) $course->has_certificate,
             'lessons_completed' => $lessonsCompleted,
             'exam' => $exam ? [
                 'duration_minutes'   => $exam->duration_minutes,
@@ -72,6 +74,10 @@ class StudentExamController extends Controller
     /** بدء/استئناف الامتحان. يُرجع المحاولة (مع الوقت المتبقّي) والأسئلة المثبّتة بترتيبها العشوائي. */
     public function start(Request $request, Course $course)
     {
+        if (! $course->has_certificate) {
+            throw ApiException::unprocessable('هذا الكورس تعريفي ولا يحتوي على امتحان.');
+        }
+
         $attempt = $this->exams->startOrResume($request->user(), $course);
 
         // جلب الأسئلة المثبّتة على هذه المحاولة بترتيبها العشوائي المحفوظ.

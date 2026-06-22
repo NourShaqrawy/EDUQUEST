@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\ManagesCourses;
 use App\Models\CourseVideo;
 use App\Models\VideoQuestion;
 use App\Models\VideoQuestionAnswer;
@@ -9,6 +10,8 @@ use Illuminate\Http\Request;
 
 class VideoQuestionController extends Controller
 {
+    use ManagesCourses;
+
     public function index(Request $request, $video_id)
     {
         $video = CourseVideo::findOrFail($video_id);
@@ -54,6 +57,10 @@ class VideoQuestionController extends Controller
             'question' => 'required|string|max:1000',
             'time_in_video' => 'required|integer|min:0',
         ]);
+
+        $video = CourseVideo::with('course')->findOrFail($validated['video_id']);
+        $this->assertManagesCourse($video->course);
+        $this->assertCourseEditable($video->course);
 
         $question = VideoQuestion::create($validated);
 
@@ -101,7 +108,9 @@ class VideoQuestionController extends Controller
 
     public function update(Request $request, $id)
     {
-        $question = VideoQuestion::findOrFail($id);
+        $question = VideoQuestion::with('video.course')->findOrFail($id);
+        $this->assertManagesCourse($question->video->course);
+        $this->assertCourseEditable($question->video->course);
 
         $validated = $request->validate([
             'question' => 'sometimes|string|max:1000',
@@ -119,7 +128,10 @@ class VideoQuestionController extends Controller
 
     public function destroy($id)
     {
-        $question = VideoQuestion::findOrFail($id);
+        $question = VideoQuestion::with('video.course')->findOrFail($id);
+        $this->assertManagesCourse($question->video->course);
+        $this->assertCourseEditable($question->video->course);
+
         $question->delete(); // DB cascadeOnDelete handles options and answers
 
         return response()->json([

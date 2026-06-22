@@ -33,6 +33,8 @@ class PublisherExamController extends Controller
     public function upsert(UpsertCourseExamRequest $request, Course $course)
     {
         $this->assertManagesCourse($course);
+        $this->assertCourseHasCertificate($course);
+        $this->assertCourseEditable($course);
 
         $data = $request->validated();
         $exam = $this->exams->upsertExam(
@@ -51,6 +53,8 @@ class PublisherExamController extends Controller
     public function publish(Course $course)
     {
         $this->assertManagesCourse($course);
+        $this->assertCourseHasCertificate($course);
+        $this->assertCourseEditable($course);
 
         $exam = $course->exam;
 
@@ -67,6 +71,8 @@ class PublisherExamController extends Controller
     public function unpublish(Course $course)
     {
         $this->assertManagesCourse($course);
+        $this->assertCourseHasCertificate($course);
+        $this->assertCourseEditable($course);
 
         $exam = $course->exam;
 

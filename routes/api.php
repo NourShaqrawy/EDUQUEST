@@ -114,6 +114,10 @@ Route::middleware('auth:sanctum')->group(function () {
         // إدارة الكورسات
         Route::get('/my-courses', [CourseController::class, 'myCourses']); // عرض كورسات الناشر نفسه
         Route::post('/courses', [CourseController::class, 'store']);      // إنشاء كورس
+        // حالة اكتمال الكورس (يجب أن تسبق مسار التعديل العام {id} لتفادي التعارض)
+        Route::get('/courses/{id}/completion-readiness', [CourseController::class, 'completionReadiness']);
+        Route::post('/courses/{id}/complete', [CourseController::class, 'markComplete']);
+        Route::post('/courses/{id}/reopen', [CourseController::class, 'reopen']);
         Route::post('/courses/{id}', [CourseController::class, 'update']); // تعديل كورس (استخدمنا POST لأن Laravel يواجه مشاكل أحياناً في قراءة ملفات الصور مع PUT)
         Route::delete('/courses/{id}', [CourseController::class, 'destroy']); // حذف كورس
 

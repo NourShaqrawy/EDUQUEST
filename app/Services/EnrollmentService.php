@@ -11,9 +11,14 @@ class EnrollmentService
 {
     public function __construct(private readonly NotificationService $notifications) {}
 
-    /** تسجيل الطالب في كورس. لا يُسمح بالتسجيل المكرر. */
+    /** تسجيل الطالب في كورس. لا يُسمح بالتسجيل المكرر، ولا إلا في كورس معتمد ومكتمل. */
     public function enroll(User $user, Course $course): Enrollment
     {
+        // الطالب لا يُسجَّل إلا في كورس معتمد من الأدمن ومكتمل من الناشر.
+        if ($course->status !== 'approved' || $course->completion_status !== 'completed') {
+            throw EnrollmentException::notAvailable();
+        }
+
         if ($user->isEnrolledIn($course->id)) {
             throw EnrollmentException::alreadyEnrolled();
         }

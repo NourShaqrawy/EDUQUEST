@@ -54,6 +54,15 @@ class CertificateService
      */
     public function eligibilityStatus(User $user, Course $course): array
     {
+        // الكورس التعريفي لا يمنح شهادة إطلاقاً.
+        if (! $course->has_certificate) {
+            return [
+                'eligible'    => false,
+                'reason'      => 'هذا الكورس تعريفي ولا يمنح شهادة.',
+                'final_score' => null,
+            ];
+        }
+
         $attempt = $this->getFinalizedAttempt($user, $course);
 
         if (! $attempt) {
