@@ -52,6 +52,14 @@ class AuthController extends Controller
             ], 401);
         }
 
+        if (! $user->is_active) {
+            return response()->json([
+                'message'    => 'Account suspended',
+                'message_ar' => 'حسابك موقوف، تواصل مع الإدارة.',
+                'message_en' => 'Your account has been suspended. Please contact the admin.',
+            ], 403);
+        }
+
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([

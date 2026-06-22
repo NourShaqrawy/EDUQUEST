@@ -95,4 +95,29 @@ class UserController extends Controller
             'message' => 'User deleted successfully'
         ]);
     }
+
+    /**
+     * 5) تفعيل/إلغاء تفعيل مستخدم (Admin فقط — لا يطبَّق على المديرين)
+     */
+    public function toggleActive(Request $request, $id)
+    {
+        $target = User::findOrFail($id);
+
+        if ($target->role === 'admin') {
+            return response()->json(['message' => 'Cannot deactivate an admin account.'], 422);
+        }
+
+        $target->is_active = ! $target->is_active;
+        $target->save();
+
+        // إلغاء جميع توكنات المستخدم عند تعطيله
+        if (! $target->is_active) {
+            $target->tokens()->delete();
+        }
+
+        return response()->json([
+            'message' => $target->is_active ? 'User activated successfully.' : 'User deactivated successfully.',
+            'user'    => $target,
+        ]);
+    }
 }

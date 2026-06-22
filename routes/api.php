@@ -4,6 +4,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\CourseCertificateController;
 use App\Http\Controllers\CourseController;
+use App\Http\Controllers\CourseDeleteRequestController;
 use App\Http\Controllers\CourseVideoController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\Publisher\ExamQuestionController; // استيراد المتحكم الجديد
@@ -97,6 +98,12 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/users', [UserController::class, 'index']);
         Route::post('/users', [UserController::class, 'store']);
         Route::delete('/users/{id}', [UserController::class, 'destroy']);
+        Route::patch('/users/{id}/toggle-active', [UserController::class, 'toggleActive']);
+
+        // طلبات حذف الكورسات — Admin
+        Route::get('/course-delete-requests', [CourseDeleteRequestController::class, 'index']);
+        Route::post('/course-delete-requests/{id}/approve', [CourseDeleteRequestController::class, 'approve']);
+        Route::post('/course-delete-requests/{id}/reject', [CourseDeleteRequestController::class, 'reject']);
 
         Route::post('/categories', [CategoryController::class, 'store']);
         Route::put('/categories/{id}', [CategoryController::class, 'update']);
@@ -107,6 +114,11 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/rejected-courses', [CourseController::class, 'rejected']);
         Route::post('/courses/{id}/approve', [CourseController::class, 'approve']);
         Route::post('/courses/{id}/reject', [CourseController::class, 'reject']);
+    });
+
+    // 🟢 Routes خاصة بالـ Publisher (طلب حذف الكورس)
+    Route::middleware('role:publisher')->group(function () {
+        Route::post('/courses/{courseId}/request-delete', [CourseDeleteRequestController::class, 'store']);
     });
 
     // 🟢 Routes خاصة بالـ Admin والـ Publisher (إدارة الكورسات)
