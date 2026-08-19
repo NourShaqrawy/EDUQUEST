@@ -13,6 +13,7 @@ use App\Http\Controllers\Student\EnrollmentController;
 use App\Http\Controllers\Student\StudentCourseController;
 use App\Http\Controllers\Student\StudentExamController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\Users\UserController as AdminUserController;
 use App\Http\Controllers\VideoQuestionAnswerController;
 use App\Http\Controllers\VideoQuestionController;
 use App\Http\Controllers\VideoQuestionOptionController;
@@ -97,8 +98,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::middleware('role:admin')->group(function () {
         Route::get('/users', [UserController::class, 'index']);
         Route::post('/users', [UserController::class, 'store']);
-        Route::delete('/users/{id}', [UserController::class, 'destroy']);
-        Route::patch('/users/{id}/toggle-active', [UserController::class, 'toggleActive']);
+        Route::delete('/users/{id}', [UserController::class, 'destroy'])->whereNumber('id');
+        Route::patch('/users/{id}/toggle-active', [UserController::class, 'toggleActive'])->whereNumber('id');
+
+        // Admin: view / edit any account (name, email, password, role, is_active).
+        // whereNumber keeps the literal `/users/profile` route from being captured here.
+        Route::get('/users/{id}', [AdminUserController::class, 'show'])->whereNumber('id');
+        Route::put('/users/{id}', [AdminUserController::class, 'update'])->whereNumber('id');
 
         // طلبات حذف الكورسات — Admin
         Route::get('/course-delete-requests', [CourseDeleteRequestController::class, 'index']);
@@ -166,8 +172,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/notifications', [NotificationController::class, 'store']);
     });
 
-    // 🟢 Routes خاصة بالـ User والـ Publisher (تعديل البروفايل)
-    Route::middleware('role:publisher,user')->group(function () {
+    // 🟢 تعديل البروفايل الشخصي (كل الأدوار: Admin / Publisher / User)
+    Route::middleware('role:admin,publisher,user')->group(function () {
         Route::put('/users/profile', [UserController::class, 'update']);
     });
 
