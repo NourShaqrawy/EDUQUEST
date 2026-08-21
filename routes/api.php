@@ -6,6 +6,7 @@ use App\Http\Controllers\CourseCertificateController;
 use App\Http\Controllers\CourseController;
 use App\Http\Controllers\CourseDeleteRequestController;
 use App\Http\Controllers\CourseVideoController;
+use App\Http\Controllers\FaqController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\Publisher\ExamQuestionController; // استيراد المتحكم الجديد
 use App\Http\Controllers\Publisher\PublisherExamController;
@@ -36,6 +37,10 @@ Route::get('/categories/{id}', [CategoryController::class, 'show']);
 // مسارات عرض الكورسات متاحة للزوار أيضاً
 Route::get('/courses', [CourseController::class, 'index']);
 Route::get('/courses/{id}', [CourseController::class, 'show']);
+
+// الأسئلة الشائعة — العرض في الرئيسية وإرسال اقتراح من الزائر (عام بدون مصادقة)
+Route::get('/faqs', [FaqController::class, 'home']);
+Route::post('/faq-suggestions', [FaqController::class, 'suggest']);
 
 /*
 |--------------------------------------------------------------------------
@@ -114,6 +119,17 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/categories', [CategoryController::class, 'store']);
         Route::put('/categories/{id}', [CategoryController::class, 'update']);
         Route::delete('/categories/{id}', [CategoryController::class, 'destroy']);
+
+        // إدارة الأسئلة الشائعة — الأدمن فقط
+        Route::get('/admin/faqs', [FaqController::class, 'index']);
+        Route::post('/admin/faqs', [FaqController::class, 'store']);
+        Route::put('/admin/faqs/{id}', [FaqController::class, 'update'])->whereNumber('id');
+        Route::patch('/admin/faqs/{id}/toggle-publish', [FaqController::class, 'togglePublish'])->whereNumber('id');
+        Route::delete('/admin/faqs/{id}', [FaqController::class, 'destroy'])->whereNumber('id');
+        Route::put('/admin/faqs-display-count', [FaqController::class, 'setDisplayCount']);
+        // اقتراحات الزوّار
+        Route::get('/admin/faq-suggestions', [FaqController::class, 'suggestions']);
+        Route::patch('/admin/faq-suggestions/{id}/dismiss', [FaqController::class, 'dismissSuggestion'])->whereNumber('id');
 
         // مراجعة الكورسات — الأدمن فقط
         Route::get('/pending-courses', [CourseController::class, 'pending']);
