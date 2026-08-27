@@ -7,10 +7,31 @@ use App\Models\CourseVideo;
 use App\Models\VideoQuestion;
 use App\Models\VideoQuestionAnswer;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 
 class VideoQuestionController extends Controller
 {
     use ManagesCourses;
+
+    /**
+     * وقت ظهور السؤال يجب أن يقع ضمن المدة الزمنية للفيديو.
+     * duration يساوي 0 يعني أن المدة غير معروفة (فشل استخراجها عند الرفع)،
+     * وعندها نتجاوز الفحص حتى لا نمنع إضافة الأسئلة نهائياً.
+     */
+    private function assertTimeWithinVideo(CourseVideo $video, $timeInVideo): void
+    {
+        $duration = (int) $video->duration;
+
+        if ($duration <= 0 || $timeInVideo === null) {
+            return;
+        }
+
+        if ((int) $timeInVideo > $duration) {
+            throw ValidationException::withMessages([
+                'time_in_video' => ["وقت ظهور السؤال يجب أن يكون ضمن مدة الفيديو (من 0 إلى {$duration} ثانية)."],
+            ]);
+        }
+    }
 
     public function index(Request $request, $video_id)
     {
@@ -61,6 +82,7 @@ class VideoQuestionController extends Controller
         $video = CourseVideo::with('course')->findOrFail($validated['video_id']);
         $this->assertManagesCourse($video->course);
         $this->assertCourseEditable($video->course);
+        $this->assertTimeWithinVideo($video, $validated['time_in_video']);
 
         $question = VideoQuestion::create($validated);
 
@@ -116,6 +138,10 @@ class VideoQuestionController extends Controller
             'question' => 'sometimes|string|max:1000',
             'time_in_video' => 'sometimes|integer|min:0',
         ]);
+
+        if (array_key_exists('time_in_video', $validated)) {
+            $this->assertTimeWithinVideo($question->video, $validated['time_in_video']);
+        }
 
         $question->update($validated);
 

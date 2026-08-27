@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
@@ -15,14 +14,10 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // User::factory(10)->create();
-
-        
-
+        // بيانات ضخمة شاملة لجميع حالات النظام (تستدعي FaqSeeder داخلياً).
+        // للتفاصيل والضبط راجع SEEDING.md في جذر مشروع الباك-إند.
         $this->call([
-            UsersTableSeeder::class,
-            TestDataSeeder::class,
-            FaqSeeder::class,
+            MassiveDataSeeder::class,
         ]);
 
     }

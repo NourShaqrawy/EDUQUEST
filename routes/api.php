@@ -179,6 +179,10 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/courses/{course}/exam/publish', [PublisherExamController::class, 'publish']);
         Route::post('/courses/{course}/exam/unpublish', [PublisherExamController::class, 'unpublish']);
 
+        // سجل مراقبة الامتحان — عرض محاولات الطلاب وأحداث المراقبة (للمراجعة البشرية)
+        Route::get('/courses/{course}/exam/attempts', [PublisherExamController::class, 'attempts']);
+        Route::get('/courses/{course}/exam/attempts/{attempt}/events', [PublisherExamController::class, 'attemptEvents']);
+
         // إدارة أسئلة الامتحان
         Route::post('/courses/{course}/exam/questions', [ExamQuestionController::class, 'store']);
         Route::put('/exam-questions/{examQuestion}', [ExamQuestionController::class, 'update']);

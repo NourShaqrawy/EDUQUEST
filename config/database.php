@@ -61,7 +61,12 @@ return [
             'engine' => null,
             'options' => extension_loaded('pdo_mysql') ? array_filter([
                 (PHP_VERSION_ID >= 80500 ? Mysql::ATTR_SSL_CA : PDO::MYSQL_ATTR_SSL_CA) => env('MYSQL_ATTR_SSL_CA'),
-            ]) : [],
+            ]) + [
+                // اتصالات دائمة: تمنع استنزاف منافذ TCP على Windows
+                // (خطأ SQLSTATE[HY000] [2002] Only one usage of each socket address).
+                // يُعاد استخدام اتصال MySQL بدل فتح/إغلاق منفذ لكل طلب.
+                PDO::ATTR_PERSISTENT => env('DB_PERSISTENT', true),
+            ] : [],
         ],
 
         'mariadb' => [

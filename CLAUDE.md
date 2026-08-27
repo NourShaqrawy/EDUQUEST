@@ -23,7 +23,9 @@ php artisan db:seed # seed test data (see below)
 
 Tests use an in-memory SQLite DB (`phpunit.xml`); they do not touch the dev database. The repo currently only ships the default example tests.
 
-**Seeding / test credentials.** `DatabaseSeeder` calls `UsersTableSeeder` (creates `admin@example.com`, `publisher@example.com`, `user@example.com` — all password `password123`, one per role) then `TestDataSeeder` (a full Category → Course → CourseVideo → two VideoQuestions + options chain, useful for exercising the question/answer flow). These are raw `DB::table()->insert` seeds, not factories.
+**Seeding (massive demo data).** `DatabaseSeeder` now calls **`MassiveDataSeeder`** — a large, all-states dataset for local demos/committee review: ~79 users (incl. a disabled account), 24 courses across **every** `status`×`completion_status`×`has_certificate` combo, real watchable videos with FFmpeg-generated 144/360/720 renditions, full exams (published + unpublished), ~110 attempts in all states, a **large proctoring event log** (~2000+ `exam_attempt_events` incl. `terminated`), certificates, results, enrollments, notifications, FAQs + suggestions, and course delete requests. Known credentials (all password `password123`): `admin@example.com`, `publisher@example.com`, `user@example.com`, `disabled@example.com`.
+
+> **When asked to "generate massive data", read [`SEEDING.md`](SEEDING.md) first** — it is the operational reference: where assets go (`database/seeders/{images,videos}`, image named `all` = default thumbnail), prerequisites (`APP_URL`, `storage:link`, FFmpeg), what every table gets, size tuning, and verification. Run with `php artisan migrate:fresh --seed --force` (use `C:/php/php-8.4/php.exe`; ~45–50s, mostly FFmpeg). The seeder reads assets from those folders and probes real video durations via `ffprobe`. Legacy `FullDatabaseSeeder`/`TestDataSeeder` remain in the repo but are no longer wired.
 
 ## Authorization model (important)
 
