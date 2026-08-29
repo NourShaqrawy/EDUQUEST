@@ -25,6 +25,11 @@ class AuthController extends Controller
             'password' => Hash::make($request->password),
         ]);
 
+        // القيم الافتراضية (role / is_active / theme / language) معرّفة على مستوى
+        // قاعدة البيانات، فلا تظهر في الكائن العائد من create(). بدون refresh()
+        // يصل الفرونت‌إند مستخدماً بلا role، فيرفضه حارس المسارات RequireRole.
+        $user->refresh();
+
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
