@@ -167,6 +167,23 @@ class MassiveDataSeeder extends Seeder
             $this->disk->put($original, file_get_contents($file));
             $absOriginal = $this->disk->path($original);
 
+            // إعادة تغليف الأصلي بـ faststart (بلا إعادة ترميز) ليعمل التحريك عليه.
+            if ($ffmpeg) {
+                $tmpOriginal = $absOriginal.'.tmp.mp4';
+                $remuxCmd = sprintf(
+                    '"%s" -v error -y -i "%s" -c copy -movflags +faststart "%s"',
+                    $ffmpeg, $absOriginal, $tmpOriginal
+                );
+                $remuxOut = [];
+                @exec($remuxCmd.' 2>&1', $remuxOut, $remuxCode);
+                if ($remuxCode === 0 && is_file($tmpOriginal) && filesize($tmpOriginal) > 0) {
+                    @unlink($absOriginal);
+                    rename($tmpOriginal, $absOriginal);
+                } else {
+                    @unlink($tmpOriginal);
+                }
+            }
+
             $paths = [
                 'video_path' => $original,
                 'video_144p' => $original,
@@ -180,9 +197,10 @@ class MassiveDataSeeder extends Seeder
                     $abs = $this->disk->path($rel);
                     // scale=-2:H يحافظ على النسبة ويضمن أبعاداً زوجية.
                     $cmd = sprintf(
-                        '"%s" -y -i "%s" -vf scale=-2:%d -c:v libx264 -preset veryfast -crf 28 -c:a aac -b:a 96k "%s"',
+                        '"%s" -y -i "%s" -vf scale=-2:%d -c:v libx264 -preset veryfast -crf 28 -c:a aac -b:a 96k -movflags +faststart "%s"',
                         $ffmpeg, $absOriginal, $height, $abs
                     );
+                    $out = [];
                     @exec($cmd.' 2>&1', $out, $code);
                     if ($code === 0 && is_file($abs)) {
                         $paths['video_'.$label] = $rel;

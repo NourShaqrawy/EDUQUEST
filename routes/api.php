@@ -7,6 +7,7 @@ use App\Http\Controllers\CourseController;
 use App\Http\Controllers\CourseDeleteRequestController;
 use App\Http\Controllers\CourseVideoController;
 use App\Http\Controllers\FaqController;
+use App\Http\Controllers\MediaController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\Publisher\ExamQuestionController; // استيراد المتحكم الجديد
 use App\Http\Controllers\Publisher\PublisherExamController;
@@ -41,6 +42,14 @@ Route::get('/courses/{id}', [CourseController::class, 'show']);
 // الأسئلة الشائعة — العرض في الرئيسية وإرسال اقتراح من الزائر (عام بدون مصادقة)
 Route::get('/faqs', [FaqController::class, 'home']);
 Route::post('/faq-suggestions', [FaqController::class, 'suggest']);
+
+// بثّ ملفات الفيديو مع دعم Range (206 Partial Content) — لازم لتحريك الفيديو
+// وتبديل الجودة، لأن خادم artisan serve لا يدعم Range على الملفات الثابتة.
+// غير محمي عمداً: مطابق تماماً لسلوك روابط /storage السابقة (الحماية تتم
+// بإخفاء حقول url_* للدروس المقفلة). يُستخدم فقط عند STREAM_MEDIA_VIA_PHP=true.
+Route::get('/media/{path}', [MediaController::class, 'show'])
+    ->where('path', '.*')
+    ->name('media.show');
 
 /*
 |--------------------------------------------------------------------------

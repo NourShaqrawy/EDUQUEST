@@ -215,6 +215,10 @@ class CourseVideoController extends Controller
         $originalPath = $videoFile->storeAs($directory, "original.$extension", 'public');
         $fullOriginalPath = Storage::disk('public')->path($originalPath);
 
+        // إعادة تغليف الأصلي بـ faststart (بلا إعادة ترميز) ليعمل التحريك عليه أيضاً.
+        $originalPath = $this->remuxOriginalFaststart($originalPath, $directory);
+        $fullOriginalPath = Storage::disk('public')->path($originalPath);
+
         $results = ['original' => $originalPath];
 
         // توليد كل دقة
@@ -229,6 +233,46 @@ class CourseVideoController extends Controller
         return $results;
     }
 
+    /**
+     * يعيد تغليف الملف الأصلي بـ faststart دون إعادة ترميز (-c copy) فيبقى حجمه
+     * وجودته كما هما، والناتج دائماً original.mp4.
+     *
+     * عند الفشل (مثلاً حاوية webm/VP9 لا تقبل -c copy إلى mp4) نُبقي الملف
+     * الأصلي كما هو ونتابع: رفع كان يعمل سابقاً يجب ألا يتحوّل إلى خطأ 500.
+     */
+    private function remuxOriginalFaststart(string $originalPath, string $directory): string
+    {
+        $disk = Storage::disk('public');
+        $source = $disk->path($originalPath);
+        $targetRelative = "$directory/original.mp4";
+        $target = $disk->path($targetRelative);
+        $temp = $disk->path("$directory/original.faststart.tmp.mp4");
+
+        $process = new Process([
+            'ffmpeg', '-y', '-i', $source,
+            '-c', 'copy',
+            '-movflags', '+faststart',
+            $temp,
+        ]);
+        $process->setTimeout(null);
+        $process->run();
+
+        if (! $process->isSuccessful() || ! is_file($temp) || filesize($temp) === 0) {
+            @unlink($temp);
+            report(new \RuntimeException('تعذّرت إعادة تغليف الأصلي بـ faststart: '.$process->getErrorOutput()));
+
+            return $originalPath;
+        }
+
+        @unlink($source);
+        if ($targetRelative !== $originalPath) {
+            @unlink($target);
+        }
+        rename($temp, $target);
+
+        return $targetRelative;
+    }
+
     private function runFfmpegCompression($source, $target, $scale)
     {
         $process = new Process([
@@ -238,6 +282,9 @@ class CourseVideoController extends Controller
             '-crf', '28',
             '-preset', 'veryfast',
             '-acodec', 'aac',
+            // ينقل ذرّة moov إلى بداية الملف ليبدأ التشغيل والتحريك فوراً بدل
+            // انتظار تحميل الملف كاملاً (لازم للـ seek ولتبديل الجودة).
+            '-movflags', '+faststart',
             $target,
         ]);
 

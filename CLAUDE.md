@@ -19,6 +19,8 @@ php artisan test tests/Feature/ExampleTest.php   # run one file
 ./vendor/bin/pint   # format code (Laravel Pint / PSR-12)
 php artisan migrate # apply migrations (default DB is SQLite)
 php artisan db:seed # seed test data (see below)
+php artisan videos:faststart --dry-run  # افحص ملفات mp4 غير المهيّأة (moov في آخر الملف)
+php artisan videos:faststart            # أعد تغليفها بـ faststart (بلا إعادة ترميز)
 ```
 
 Tests use an in-memory SQLite DB (`phpunit.xml`); they do not touch the dev database. The repo currently only ships the default example tests.
@@ -26,6 +28,15 @@ Tests use an in-memory SQLite DB (`phpunit.xml`); they do not touch the dev data
 **Seeding (massive demo data).** `DatabaseSeeder` now calls **`MassiveDataSeeder`** — a large, all-states dataset for local demos/committee review: ~79 users (incl. a disabled account), 24 courses across **every** `status`×`completion_status`×`has_certificate` combo, real watchable videos with FFmpeg-generated 144/360/720 renditions, full exams (published + unpublished), ~110 attempts in all states, a **large proctoring event log** (~2000+ `exam_attempt_events` incl. `terminated`), certificates, results, enrollments, notifications, FAQs + suggestions, and course delete requests. Known credentials (all password `password123`): `admin@example.com`, `publisher@example.com`, `user@example.com`, `disabled@example.com`.
 
 > **When asked to "generate massive data", read [`SEEDING.md`](SEEDING.md) first** — it is the operational reference: where assets go (`database/seeders/{images,videos}`, image named `all` = default thumbnail), prerequisites (`APP_URL`, `storage:link`, FFmpeg), what every table gets, size tuning, and verification. Run with `php artisan migrate:fresh --seed --force` (use `C:/php/php-8.4/php.exe`; ~45–50s, mostly FFmpeg). The seeder reads assets from those folders and probes real video durations via `ffprobe`. Legacy `FullDatabaseSeeder`/`TestDataSeeder` remain in the repo but are no longer wired.
+
+## Video playback config (seeking / quality switching)
+
+Two settings in `.env` matter for the student player, and both were the cause of "changing quality restarts the video" and "seeking jumps to the end":
+
+- `STREAM_MEDIA_VIA_PHP=true` — routes video through `GET /api/media/{path}` ([MediaController](app/Http/Controllers/MediaController.php)), which returns **206 Partial Content**. `artisan serve` ignores `Range` on static `/storage/` files and returns the whole file with `200`, and a browser cannot seek without 206. Keep it **false in production** (nginx/Apache handle ranges natively and far faster).
+- `PHP_CLI_SERVER_WORKERS=8` — required whenever the flag above is on: the dev server is otherwise single-threaded, and a streaming video response would block every other API request.
+
+FFmpeg output carries `-movflags +faststart` (both [CourseVideoController](app/Http/Controllers/CourseVideoController.php) and `MassiveDataSeeder`) so the `moov` atom sits at the head of the file. Repair older files with `php artisan videos:faststart`. After changing either env var run `php artisan config:clear` and restart the server.
 
 ## Authorization model (important)
 

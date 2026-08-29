@@ -37,23 +37,45 @@ class CourseVideo extends Model
     // رابط الفيديو الأصلي
     public function getVideoUrlAttribute()
     {
-        return $this->video_path ? asset('storage/'.$this->video_path) : null;
+        return $this->mediaUrl($this->video_path);
     }
 
     // روابط الجودات المختلفة
     public function getUrl144pAttribute()
     {
-        return $this->video_144p ? asset('storage/'.$this->video_144p) : null;
+        return $this->mediaUrl($this->video_144p);
     }
 
     public function getUrl360pAttribute()
     {
-        return $this->video_360p ? asset('storage/'.$this->video_360p) : null;
+        return $this->mediaUrl($this->video_360p);
     }
 
     public function getUrl720pAttribute()
     {
-        return $this->video_720p ? asset('storage/'.$this->video_720p) : null;
+        return $this->mediaUrl($this->video_720p);
+    }
+
+    /**
+     * يبني الرابط المطلق لملف الفيديو.
+     *
+     * الافتراضي رابط ثابت عبر /storage (خادم الإنتاج يعالج Range بنفسه).
+     * وعند تفعيل STREAM_MEDIA_VIA_PHP يمرّ الرابط عبر مسار Laravel الذي يعيد
+     * 206 Partial Content — لازم محلياً لأن artisan serve لا يدعم Range، وبدونه
+     * لا يعمل تحريك الفيديو ولا استئناف الموضع عند تبديل الجودة.
+     *
+     * نستخدم url() لا route() لأن route() يرمّز الشرطات المائلة إلى %2F فيكسر
+     * قيد الوسيط '.*'. أسماء المجلدات والملفات مولّدة من uniqid() وآمنة في URL.
+     */
+    private function mediaUrl(?string $path): ?string
+    {
+        if (! $path) {
+            return null;
+        }
+
+        return config('filesystems.stream_media_via_php')
+            ? url('/api/media/'.$path)
+            : asset('storage/'.$path);
     }
 
     // العلاقات
