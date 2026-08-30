@@ -101,7 +101,6 @@ class CourseVideoController extends Controller
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
             'video' => 'required|file|mimetypes:video/mp4,video/quicktime,video/x-msvideo,video/x-matroska,video/webm|max:512000',
-            'order' => 'sometimes|integer|min:1',
         ]);
 
         $paths = []; // لتخزين كافة المسارات المنتجة
@@ -123,7 +122,8 @@ class CourseVideoController extends Controller
                 'video_360p' => $paths['360p'],
                 'video_720p' => $paths['720p'],
                 'duration' => $duration,
-                'order' => $validated['order'] ?? (($course->courseVideos()->max('order') ?? 0) + 1),
+                // الترتيب تلقائي دائماً: كل درس جديد يُضاف في نهاية القائمة (الأقدم أولاً).
+                'order' => ($course->courseVideos()->max('order') ?? 0) + 1,
             ]);
 
             return response()->json(['message' => 'تم رفع الدرس بكافة الجودات', 'video' => $video], 201);
@@ -145,7 +145,6 @@ class CourseVideoController extends Controller
             'title' => 'sometimes|string|max:255',
             'description' => 'sometimes|nullable|string',
             'video' => 'sometimes|file|mimetypes:video/mp4,video/quicktime,video/x-msvideo,video/x-matroska,video/webm|max:512000',
-            'order' => 'sometimes|integer|min:1',
         ]);
 
         $newPaths = [];
@@ -158,7 +157,8 @@ class CourseVideoController extends Controller
         ];
 
         try {
-            $updateData = $request->only(['title', 'description', 'order']);
+            // الترتيب لا يُعدَّل يدوياً — يبقى كما حُدِّد آلياً عند الرفع.
+            $updateData = $request->only(['title', 'description']);
 
             if ($request->hasFile('video')) {
                 // معالجة الفيديو الجديد
