@@ -98,6 +98,16 @@
     min-width: 100mm;
   }
 
+  /* النص العربي يصل من ArabicText مشكّلاً ومرتّباً بصرياً بالكامل، لذلك
+     يجب أن يُرسم كما هو من اليسار لليمين. أي direction:rtl هنا سيجعل
+     DomPDF يعكس ترتيب الكلمات مرة ثانية (كل كلمة تُرسم كمقطع مستقل)
+     فيظهر ترتيب الكلمات مقلوباً. نكتفي برفع الحجم لأن الحروف العربية
+     أقصر بصرياً من اللاتينية بنفس المقاس. */
+  .rtl-text {
+    direction: ltr;
+    font-size: 1.15em;
+  }
+
   .body-text {
     font-size: 10pt;
     color: #444;
@@ -237,11 +247,11 @@
 
   <div class="presented-to">This certificate is proudly presented to</div>
 
-  <div class="student-name">{{ $certificate->user->name }}</div>
+  <div class="student-name {{ $nameIsArabic ? 'rtl-text' : '' }}">{{ $studentName }}</div>
 
   <div class="body-text">
     for successfully completing the course<br>
-    <span class="course-name">&ldquo;{{ $certificate->course->title }}&rdquo;</span>
+    <span class="course-name {{ $titleIsArabic ? 'rtl-text' : '' }}">&ldquo;{{ $courseTitle }}&rdquo;</span>
   </div>
 
   <div class="level-badge">

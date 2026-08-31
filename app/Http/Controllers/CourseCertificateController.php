@@ -6,6 +6,7 @@ use App\Http\Resources\CourseCertificateResource;
 use App\Models\Course;
 use App\Models\CourseCertificate;
 use App\Services\CertificateService;
+use App\Support\ArabicText;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 
@@ -117,8 +118,17 @@ class CourseCertificateController extends Controller
 
         $certificate->load(['user', 'course']);
 
+        // DomPDF لا يشكّل الحروف العربية ولا يعكس اتجاهها، فنعالج النصوص
+        // قبل تمريرها للقالب (انظر App\Support\ArabicText).
+        $studentName = $certificate->user->name;
+        $courseTitle = $certificate->course->title;
+
         $pdf = Pdf::loadView('certificates.certificate', [
-            'certificate' => $certificate,
+            'certificate'   => $certificate,
+            'studentName'   => ArabicText::forPdf($studentName),
+            'courseTitle'   => ArabicText::forPdf($courseTitle),
+            'nameIsArabic'  => ArabicText::hasArabic($studentName),
+            'titleIsArabic' => ArabicText::hasArabic($courseTitle),
         ])->setPaper('a4', 'landscape');
 
         $filename = 'certificate-'.$certificate->certificate_code.'.pdf';
